@@ -1,0 +1,336 @@
+// 仪式交互（设计文档 3.1 四层反馈：手势 / 视觉 / 声音 / 回应）。
+// 每个仪式：走到对应槽位 → 手势 → 泥生动作 + 音效 → 服务端回应（功德、签文、香火）。
+import { api, ApiError } from './api.js';
+import { t, getLocale } from './i18n.js';
+import * as audio from './audio.js';
+import { $, toast, hint, openPanel, closePanel } from './ui.js';
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+export function createRituals(game) {
+  const { controls, net, temple, anchors, self, slug } = game;
+  let busy = false;
+
+  async function walkTo(anchor) {
+    if (!anchor) return false;
+    hint(t('hint.walking'));
+    const ok = await controls.goTo({ ...anchor, run: true });
+    hint('');
+    return ok;
+  }
+
+  function act(a) { self().setAction(a); net.send({ t: 'act', a }); }
+  function idle() { act('idle'); }
+
+  // ---------- 合掌 / 问讯 ----------
+  async function gassho() {
+    act('pray'); await wait(450); audio.clay(0.5); self().pulse(0.8);
+    await wait(900); idle();
+  }
+  async function bow() {
+    act('bow'); await wait(500); audio.clay(0.35);
+    net.send({ t: 'rit', k: 'bow' });
+    await wait(1600); idle();
+  }
+
+  // ---------- 上香 ----------
+  async function incense() {
+    if (busy) return; busy = true;
+    try {
+      if (!(await walkTo(anchors.burner))) return;
+      controls.locked = true;
+      const lit = await holdToLight();
+      if (!lit) return;
+      act('incense'); audio.sticks(0.3);
+      hint(t('incense.lit'));
+      await wait(1400);
+      for (let i = 0; i < 3; i++) { // 举香齐眉三拜
+        self().setAction('bow'); await wait(700); self().setAction('incense'); await wait(650);
+      }
+      net.send({ t: 'rit', k: 'incense' });
+      hint('');
+      await wait(300);
+      idle();
+    } finally { controls.locked = false; busy = false; closePanel('incense-panel'); }
+  }
+
+  function holdToLight() {
+    return new Promise((resolve) => {
+      openPanel('incense-panel', () => resolve(false));
+      const btn = $('incense-hold'), ring = $('incense-ring');
+      const C = 276.5; let start = 0, raf = 0;
+      const reset = () => { cancelAnimationFrame(raf); start = 0; ring.style.strokeDashoffset = C; };
+      const tick = () => {
+        const k = Math.min(1, (performance.now() - start) / 1200);
+        ring.style.strokeDashoffset = String(C * (1 - k));
+        if (k >= 1) { cleanup(); audio.crackle(0.25); self().pulse(1.2); closePanelSilently(); resolve(true); return; }
+        raf = requestAnimationFrame(tick);
+      };
+      const down = (e) => { e.preventDefault(); start = performance.now(); raf = requestAnimationFrame(tick); };
+      const up = () => reset();
+      const closePanelSilently = () => { $('incense-panel').hidden = true; };
+      const cleanup = () => { btn.removeEventListener('pointerdown', down); btn.removeEventListener('pointerup', up); btn.removeEventListener('pointerleave', up); reset(); };
+      btn.addEventListener('pointerdown', down);
+      btn.addEventListener('pointerup', up);
+      btn.addEventListener('pointerleave', up);
+      btn.onkeydown = (e) => { if ((e.key === ' ' || e.key === 'Enter') && !start) down(e); };
+      btn.onkeyup = up;
+    });
+  }
+
+  // ---------- 求签 + 掷筊 ----------
+  async function fortune() {
+    if (busy) return; busy = true;
+    try {
+      if (!(await walkTo(anchors.fortune))) return;
+      controls.locked = true;
+      $('lot').hidden = true; $('jiao').hidden = true; $('tube').hidden = false;
+      $('fortune-jiao').hidden = true; $('fortune-shake').hidden = false; $('fortune-shake').disabled = false;
+      $('fortune-msg').textContent = t('fortune.shaking');
+      const done = new Promise((resolve) => openPanel('fortune-panel', resolve));
+      try {
+        const today = await api('GET', `/api/temples/${slug}/fortune/today`);
+        if (today.lot) { $('fortune-msg').textContent = t('fortune.limit'); showLot(today.lot); $('fortune-shake').hidden = true; }
+      } catch { /* ignore */ }
+      motionShake();
+      await done;
+    } finally { controls.locked = false; busy = false; idle(); }
+  }
+
+  let shaking = false;
+  async function shake() {
+    if (shaking) return; shaking = true;
+    $('fortune-shake').disabled = true;
+    act('fortune');
+    const tube = $('tube'); tube.classList.remove('drop'); tube.classList.add('shaking');
+    for (let i = 0; i < 6; i++) { audio.sticks(0.35); await wait(260); }
+    try {
+      const out = await api('POST', `/api/temples/${slug}/fortune/draw`);
+      tube.classList.remove('shaking'); tube.classList.add('drop'); audio.clay(0.3, 0.8);
+      await wait(900);
+      $('fortune-msg').textContent = t('fortune.drawn', out.no);
+      $('fortune-shake').hidden = true; $('fortune-jiao').hidden = false;
+    } catch (e) {
+      tube.classList.remove('shaking');
+      if (e instanceof ApiError && e.body?.lot) { $('fortune-msg').textContent = t('fortune.limit'); showLot(e.body.lot); $('fortune-shake').hidden = true; }
+      else toast(t('err.generic'));
+    } finally { shaking = false; $('fortune-shake').disabled = false; self().setAction('idle'); }
+  }
+
+  async function throwJiao() {
+    $('fortune-jiao').disabled = true;
+    const j = $('jiao'); $('tube').hidden = true; j.hidden = false; j.className = 'jiao toss';
+    try {
+      const out = await api('POST', `/api/temples/${slug}/fortune/jiao`);
+      await wait(900);
+      audio.clay(0.4, 0.7); setTimeout(() => audio.clay(0.3, 0.75), 120);
+      j.className = `jiao ${out.result === 'sheng' ? 'mixed' : out.result === 'xiao' ? 'flat' : ''}`;
+      // 圣筊点头 / 笑筊歪头 / 阴筊肩膀微垂
+      self().setAction(out.result === 'sheng' ? 'pray' : 'idle');
+      if (out.final) {
+        $('fortune-msg').textContent = out.gentle ? t('fortune.gentle') : t(`jiao.${out.result}`);
+        $('fortune-jiao').hidden = true;
+        showLot(out.lot);
+      } else {
+        $('fortune-msg').textContent = t(`jiao.${out.result}`);
+        $('fortune-jiao').hidden = true; $('fortune-shake').hidden = false;
+        $('tube').hidden = false; j.hidden = true; $('tube').classList.remove('drop');
+      }
+    } catch { toast(t('err.generic')); } finally { $('fortune-jiao').disabled = false; }
+  }
+
+  function showLot(lot) {
+    $('lot').hidden = false;
+    $('lot-no').textContent = t('lot.no', lot.no);
+    $('lot-level').textContent = lot.level;
+    $('lot-poem').replaceChildren(...lot.poem.map((line) => { const s = document.createElement('span'); s.textContent = line; return s; }));
+    $('lot-meaning').textContent = lot.meaning;
+    const keys = Object.keys(lot.advice);
+    const tabs = keys.map((k, i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.role = 'tab'; b.textContent = k;
+      b.setAttribute('aria-selected', String(i === 0));
+      b.onclick = () => { tabs.forEach((x) => x.setAttribute('aria-selected', 'false')); b.setAttribute('aria-selected', 'true'); $('lot-advice-text').textContent = lot.advice[k]; };
+      return b;
+    });
+    $('lot-advice').replaceChildren(...tabs);
+    $('lot-advice-text').textContent = lot.advice[keys[0]];
+    $('lot-share').onclick = () => shareLot(lot);
+  }
+
+  function shareLot(lot) {
+    // 竖版古风签文图（朋友圈 / IG Story 尺寸）
+    const c = document.createElement('canvas'); c.width = 1080; c.height = 1920;
+    const g = c.getContext('2d');
+    const grd = g.createLinearGradient(0, 0, 0, 1920); grd.addColorStop(0, '#2a201a'); grd.addColorStop(1, '#120e0b');
+    g.fillStyle = grd; g.fillRect(0, 0, 1080, 1920);
+    g.strokeStyle = '#d2ad5e'; g.lineWidth = 6; g.strokeRect(70, 70, 940, 1780);
+    g.fillStyle = '#d2ad5e'; g.textAlign = 'center';
+    g.font = '600 64px "Noto Serif TC","Songti TC",serif'; g.fillText(`${game.templeName} · ${t('lot.no', lot.no)}`, 540, 230);
+    g.font = '500 52px "Noto Serif TC","Songti TC",serif'; g.fillText(lot.level, 540, 320);
+    g.fillStyle = '#efe7da'; g.font = '500 76px "Noto Serif TC","Songti TC",serif';
+    lot.poem.forEach((line, i) => { [...line].forEach((ch, k) => g.fillText(ch, 760 - i * 150, 520 + k * 100)); });
+    g.font = '400 40px "Noto Sans TC",sans-serif'; g.fillStyle = '#c9bfb0';
+    wrap(g, lot.meaning, 540, 1360, 820, 64);
+    g.font = '400 30px "Noto Sans TC",sans-serif'; g.fillStyle = '#a49a8c';
+    g.fillText(t('fortune.fineprint'), 540, 1760);
+    const a = document.createElement('a'); a.download = `lot-${lot.no}.png`; a.href = c.toDataURL('image/png'); a.click();
+  }
+  function wrap(g, text, x, y, maxW, lh) {
+    let line = '';
+    for (const ch of text) { if (g.measureText(line + ch).width > maxW) { g.fillText(line, x, y); line = ch; y += lh; } else line += ch; }
+    g.fillText(line, x, y);
+  }
+
+  // 摇手机 = 摇签筒（Android 直接可用；iOS 需用户点击授权）
+  function motionShake() {
+    if (!('DeviceMotionEvent' in window)) return;
+    let last = 0, energy = 0;
+    const onMotion = (e) => {
+      const a = e.accelerationIncludingGravity; if (!a) return;
+      const m = Math.abs(a.x || 0) + Math.abs(a.y || 0) + Math.abs(a.z || 0);
+      energy = energy * 0.9 + Math.abs(m - last); last = m;
+      if (energy > 60 && !$('fortune-panel').hidden && !$('fortune-shake').hidden) { energy = 0; shake(); }
+    };
+    const start = () => window.addEventListener('devicemotion', onMotion);
+    if (typeof DeviceMotionEvent.requestPermission === 'function') {
+      $('fortune-shake').addEventListener('click', () => DeviceMotionEvent.requestPermission().then((s) => s === 'granted' && start()).catch(() => {}), { once: true });
+    } else start();
+    const stop = () => window.removeEventListener('devicemotion', onMotion);
+    const obs = new MutationObserver(() => { if ($('fortune-panel').hidden) { stop(); obs.disconnect(); } });
+    obs.observe($('fortune-panel'), { attributes: true, attributeFilter: ['hidden'] });
+  }
+
+  // ---------- 木鱼 / 念珠 ----------
+  async function counter(kind) {
+    if (busy) return; busy = true;
+    try {
+      if (kind === 'muyu' && !(await walkTo(anchors.muyu))) return;
+      controls.locked = kind === 'muyu';
+      act(kind === 'muyu' ? 'muyu' : 'bead');
+      let n = 0;
+      const pad = $('count-pad');
+      pad.classList.toggle('beads', kind === 'bead');
+      $('count-title').textContent = t(kind === 'muyu' ? 'muyu.title' : 'beads.title');
+      const sub = () => { $('count-sub').textContent = kind === 'muyu' ? t('muyu.sub') : t('beads.sub', Math.floor(n / 108)); };
+      $('count-n').textContent = '0'; sub();
+      const hit = () => {
+        n++; $('count-n').textContent = kind === 'bead' ? String(n % 108 || 108) : String(n); sub();
+        if (kind === 'muyu') audio.muyu(); else audio.bead();
+        if (kind === 'bead' && n % 108 === 0) audio.bell(0.25);
+        net.send({ t: 'rit', k: kind === 'muyu' ? 'muyu' : 'bead' });
+        if (navigator.vibrate) navigator.vibrate(8);
+      };
+      pad.onclick = hit;
+      const key = (e) => { if (e.key === ' ' && !$('count-panel').hidden && document.activeElement !== pad) { e.preventDefault(); hit(); } };
+      window.addEventListener('keydown', key);
+      await new Promise((resolve) => openPanel('count-panel', resolve));
+      window.removeEventListener('keydown', key);
+      pad.onclick = null;
+    } finally { controls.locked = false; busy = false; idle(); }
+  }
+
+  // ---------- 静坐 ----------
+  let sitting = null;
+  async function sit() {
+    if (busy || sitting) return; busy = true;
+    try {
+      const seat = game.freeSeat();
+      if (!seat) { toast(t('sit.full')); return; }
+      hint(t('sit.find'));
+      const ok = await controls.goTo({ x: seat.x, z: seat.z + 0.9, run: true });
+      hint('');
+      if (!ok) return;
+      net.send({ t: 'sit', seat: seat.id });
+      controls.place(seat.x, seat.z, seat.ry ?? Math.PI);
+      controls.locked = true;
+      self().setAction('sit');
+      audio.clay(0.25, 1.3);
+      sitting = { seat, start: performance.now() };
+      startBreath();
+    } finally { busy = false; }
+  }
+  function stand() {
+    if (!sitting) return;
+    net.send({ t: 'stand' });
+    sitting = null; controls.locked = false; idle(); stopBreath();
+  }
+  let breathTimer = 0;
+  function startBreath() {
+    $('breath').hidden = false; $('actions').hidden = true;
+    const core = document.querySelector('.breath-core');
+    let inhale = true;
+    const step = () => {
+      if (!sitting) return;
+      const mins = (performance.now() - sitting.start) / 60000;
+      const len = Math.min(6000, 4000 + mins * 400); // 呼吸逐渐变慢
+      core.style.transitionDuration = `${len}ms`;
+      core.style.transform = inhale ? 'scale(2.6)' : 'scale(1)';
+      $('breath-word').textContent = t(inhale ? 'sit.in' : 'sit.out');
+      inhale = !inhale;
+      breathTimer = setTimeout(step, len);
+    };
+    step();
+    const clock = () => {
+      if (!sitting) return;
+      const s = Math.floor((performance.now() - sitting.start) / 1000);
+      $('breath-time').textContent = t('sit.time', Math.floor(s / 60), s % 60);
+      setTimeout(clock, 1000);
+    };
+    clock();
+  }
+  function stopBreath() { clearTimeout(breathTimer); $('breath').hidden = true; $('actions').hidden = false; }
+  $('breath-stop').onclick = stand;
+
+  // ---------- 祈愿 ----------
+  async function wish() {
+    if (busy) return; busy = true;
+    try {
+      await walkTo(anchors.wish);
+      act('wish');
+      $('wish-support').hidden = true;
+      await refreshWall();
+      const done = new Promise((resolve) => openPanel('wish-panel', resolve));
+      $('wish-form').onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+          const out = await api('POST', `/api/temples/${slug}/wishes`, { text: $('wish-text').value, anonymous: $('wish-anon').checked });
+          $('wish-text').value = '';
+          if (out.support) {
+            $('wish-support').hidden = false;
+            $('wish-support').textContent = `${t('wish.private')} ${t('wish.support', out.support)}`;
+          } else {
+            toast(t('wish.done'), { gold: true }); audio.clay(0.3, 1.1);
+          }
+          await refreshWall();
+        } catch (err) { toast(err.body?.error === 'wish_rejected' ? t('wish.rejected') : t('err.generic')); }
+      };
+      await done;
+    } finally { busy = false; idle(); }
+  }
+
+  async function refreshWall() {
+    try {
+      const list = await api('GET', `/api/temples/${slug}/wishes`);
+      temple.setTablets(list.length);
+      $('wish-list').replaceChildren(...list.slice(0, 30).map((w) => {
+        const li = document.createElement('li'); li.textContent = w.text;
+        const who = document.createElement('span'); who.className = 'who'; who.textContent = w.name || t('wish.someone');
+        const b = document.createElement('button'); b.type = 'button'; b.textContent = `${t('wish.rejoice')} ${w.rejoice || ''}`;
+        b.onclick = async () => { try { const r = await api('POST', `/api/wishes/${w.id}/rejoice`); b.textContent = `${t('wish.rejoice')} ${r.rejoice}`; b.disabled = true; } catch { b.disabled = true; } };
+        li.append(who, b);
+        return li;
+      }));
+    } catch { /* offline wall is fine */ }
+  }
+
+  $('fortune-shake').onclick = shake;
+  $('fortune-jiao').onclick = throwJiao;
+  void getLocale;
+
+  return {
+    gassho, bow, incense, fortune, wish, sit, stand,
+    muyu: () => counter('muyu'), beads: () => counter('bead'),
+    get sitting() { return !!sitting; },
+    refreshWall,
+  };
+}

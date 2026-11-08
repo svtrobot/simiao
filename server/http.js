@@ -1,0 +1,204 @@
+// HTTP: JSON API + static files. Kept framework-free; routes map 1:1 to the
+// NestJS controllers planned in the design doc (6.1) when the backend is split out.
+import fs from 'node:fs';
+import path from 'node:path';
+import { HttpError } from './domain/util.js';
+
+export const THREE_VERSION = '0.170.0';
+
+const MIME = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json',
+  '.ktx2': 'image/ktx2', '.ogg': 'audio/ogg', '.mp3': 'audio/mpeg', '.wasm': 'application/wasm', '.ico': 'image/x-icon',
+  '.splat': 'application/octet-stream', '.ply': 'application/octet-stream',
+};
+
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), geolocation=(), microphone=(self), accelerometer=(self), gyroscope=(self)',
+};
+
+export function sendJson(res, status, body) {
+  const data = JSON.stringify(body);
+  res.writeHead(status, { 'Content-Type': MIME['.json'], 'Cache-Control': 'no-store', ...SECURITY_HEADERS });
+  res.end(data);
+}
+
+async function readJson(req, limit = 8 * 1024) {
+  let size = 0; const chunks = [];
+  for await (const c of req) {
+    size += c.length;
+    if (size > limit) throw new HttpError(413, 'body_too_large');
+    chunks.push(c);
+  }
+  if (!size) return {};
+  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new HttpError(400, 'invalid_json'); }
+}
+
+function serveStatic(res, baseDir, rel, { cache = 'no-cache' } = {}) {
+  const safe = path.normalize(decodeURIComponent(rel)).replace(/^([/\\])+/, '');
+  if (safe.split(/[/\\]/).includes('..')) return false;
+  let file = path.join(baseDir, safe);
+  if (!file.startsWith(baseDir)) return false;
+  try {
+    if (fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
+    const st = fs.statSync(file);
+    res.writeHead(200, {
+      'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
+      'Content-Length': st.size, 'Cache-Control': cache, ...SECURITY_HEADERS,
+    });
+    fs.createReadStream(file).pipe(res);
+    return true;
+  } catch { return false; }
+}
+
+export function createHandler(ctx) {
+  const { config, users, templesSvc, scenes, fortune, offerings, lobby } = ctx;
+  const routes = [];
+  const route = (method, pattern, fn) => {
+    const keys = [];
+    const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => { keys.push(k); return '([^/]+)'; }) + '$');
+    routes.push({ method, re, keys, fn });
+  };
+  const token = (req) => (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || null;
+  const admin = (req) => {
+    if (!config.adminToken || token(req) !== config.adminToken) throw new HttpError(401, 'admin_required');
+  };
+  const temple = (slug) => {
+    const t = templesSvc.get(slug);
+    if (!t || t.status !== 'live') throw new HttpError(404, 'temple_not_found');
+    return t;
+  };
+  const ritualOk = (t, action) => {
+    const scene = scenes.get(t.sceneId);
+    const mode = ctx.modeOf(t, scene);
+    if (!ctx.actionAllowed(mode, action)) throw new HttpError(403, 'not_in_this_mode');
+  };
+
+  route('GET', '/api/health', () => ({ ok: true, region: config.region, online: lobby.totalOnline(), uptime: Math.round(process.uptime()) }));
+
+  route('GET', '/api/config', () => ({
+    region: config.region, locale: config.regionPolicy.locale, ritualsAllowed: config.regionPolicy.ritualsAllowed,
+    selfServiceTemples: config.regionPolicy.selfServiceTemples, hotline: config.regionPolicy.hotline,
+  }));
+
+  route('POST', '/api/session', async (req) => {
+    const body = await readJson(req);
+    const s = users.session(body.token || token(req));
+    if (body.mood) users.setMood(s.user, body.mood);
+    return { token: s.token, user: users.publicView(s.user), returned: s.returned };
+  });
+
+  route('POST', '/api/me/mood', async (req) => {
+    const u = users.require(token(req));
+    users.setMood(u, (await readJson(req)).mood);
+    return users.publicView(u);
+  });
+
+  route('GET', '/api/me', (req) => users.publicView(users.require(token(req))));
+
+  route('GET', '/api/temples', () => templesSvc.listPublic().map((t) => ({
+    slug: t.slug, name: t.name, type: t.type, label: t.label || null, certified: t.certified, sceneId: t.sceneId,
+    online: lobby.templeStats(t.id).online,
+  })));
+
+  route('GET', '/api/temples/:slug', (req, p) => {
+    const t = temple(p.slug);
+    const scene = scenes.get(t.sceneId);
+    return {
+      temple: { slug: t.slug, name: t.name, plaque: t.plaque, type: t.type, label: t.label || null, certified: t.certified, tier: t.tier },
+      mode: ctx.modeOf(t, scene),
+      scene,
+      stats: lobby.templeStats(t.id),
+    };
+  });
+
+  route('GET', '/api/scenes', () => scenes.forRegion(config.region).map((s) => scenes.summary(s)));
+
+  route('POST', '/api/temples/:slug/fortune/draw', (req, p) => {
+    const t = temple(p.slug); ritualOk(t, 'fortune');
+    return fortune.draw(users.require(token(req)).id, t.id);
+  });
+  route('POST', '/api/temples/:slug/fortune/jiao', (req, p) => {
+    const t = temple(p.slug); ritualOk(t, 'fortune');
+    return fortune.throwJiao(users.require(token(req)).id, t.id);
+  });
+  route('GET', '/api/temples/:slug/fortune/today', (req, p) => {
+    const t = temple(p.slug);
+    return { lot: fortune.today(users.require(token(req)).id, t.id) };
+  });
+
+  route('GET', '/api/temples/:slug/wishes', (req, p) => offerings.wall(temple(p.slug).id));
+  route('POST', '/api/temples/:slug/wishes', async (req, p) => {
+    const t = temple(p.slug);
+    const u = users.require(token(req));
+    const body = await readJson(req);
+    const out = offerings.addWish(u, t.id, body);
+    ctx.creditMerit(u, 'wish');
+    return { wish: { id: out.wish.id, text: out.wish.text, visibility: out.wish.visibility }, support: out.support };
+  });
+  route('POST', '/api/wishes/:id/rejoice', (req, p) => {
+    const u = users.require(token(req));
+    const out = offerings.rejoice(u, p.id);
+    if (!out.already) ctx.creditMerit(u, 'rejoice');
+    return out;
+  });
+
+  route('POST', '/api/temples/apply', async (req) => templesSvc.apply(await readJson(req)));
+
+  // ---- admin (平台审核) ----
+  route('GET', '/api/admin/applications', (req) => { admin(req); return templesSvc.applications(); });
+  route('POST', '/api/admin/applications/:id/decision', async (req, p) => {
+    admin(req);
+    return templesSvc.decide(p.id, await readJson(req));
+  });
+  route('GET', '/api/admin/scenes', (req) => {
+    admin(req);
+    return { scenes: [...scenes.scenes.values()].map((s) => scenes.summary(s)), rejected: Object.fromEntries(scenes.errors) };
+  });
+  route('POST', '/api/admin/scenes/reload', (req) => { admin(req); scenes.load(); return { loaded: scenes.scenes.size, rejected: Object.fromEntries(scenes.errors) }; });
+  route('GET', '/api/admin/stats', (req) => {
+    admin(req);
+    return { online: lobby.totalOnline(), temples: [...lobby.temples.entries()].map(([id]) => ({ id, ...lobby.templeStats(id) })) };
+  });
+
+  return async function handle(req, res) {
+    const url = new URL(req.url, 'http://x');
+    try {
+      if (url.pathname.startsWith('/api/')) {
+        for (const r of routes) {
+          if (r.method !== req.method) continue;
+          const m = url.pathname.match(r.re);
+          if (!m) continue;
+          const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
+          const out = await r.fn(req, params, url);
+          return sendJson(res, 200, out);
+        }
+        throw new HttpError(404, 'not_found');
+      }
+      if (req.method !== 'GET' && req.method !== 'HEAD') throw new HttpError(405, 'method_not_allowed');
+      if (url.pathname.startsWith('/scenes/')) {
+        if (serveStatic(res, config.scenesDir, url.pathname.slice('/scenes/'.length), { cache: 'public, max-age=300' })) return;
+      } else if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
+        if (serveStatic(res, config.adminDir, url.pathname.slice('/admin'.length) || '/')) return;
+      } else if (serveStatic(res, config.clientDir, url.pathname, { cache: url.pathname.startsWith('/vendor/') ? 'public, max-age=86400' : 'no-cache' })) {
+        return;
+      } else if (url.pathname.startsWith('/vendor/three/')) {
+        // Not vendored locally (run `npm run vendor:three` for self-hosting, required for mainland):
+        // fall back to the public CDN with the exact pinned version.
+        res.writeHead(302, { Location: `https://cdn.jsdelivr.net/npm/three@${THREE_VERSION}/${url.pathname.slice('/vendor/three/'.length)}` });
+        return res.end();
+      } else if (!path.extname(url.pathname)) {
+        // SPA routes like /t/main → index.html
+        if (serveStatic(res, config.clientDir, '/index.html')) return;
+      }
+      throw new HttpError(404, 'not_found');
+    } catch (e) {
+      if (e instanceof HttpError) return sendJson(res, e.status, { error: e.code, ...e.extra });
+      console.error('[http]', req.method, url.pathname, e);
+      return sendJson(res, 500, { error: 'internal' });
+    }
+  };
+}

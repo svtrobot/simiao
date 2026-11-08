@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>雲上寺 · 平台後台</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  :root { --ink: #14110f; --paper: #efe7da; --muted: #a49a8c; --gold: #d2ad5e; --line: rgba(239,231,218,.14); --bad: #d0765f; --ok: #8fb08a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ink); color: var(--paper); font-family: "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--line); }
+  h1 { font-family: "Noto Serif TC","Songti TC",serif; font-weight: 500; letter-spacing: .2em; font-size: 20px; margin: 0; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px; display: grid; gap: 28px; }
+  h2 { font-size: 16px; letter-spacing: .15em; color: var(--gold); margin: 0 0 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  input, select, textarea { background: rgba(239,231,218,.06); color: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; min-height: 38px; }
+  button { background: rgba(210,173,94,.14); border: 1px solid rgba(210,173,94,.55); color: #f6e7c5; border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; min-height: 38px; }
+  button.secondary { background: transparent; border-color: var(--line); color: var(--paper); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .pill { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
+  .pending { color: var(--gold); border-color: var(--gold); } .approved { color: var(--ok); border-color: var(--ok); } .rejected { color: var(--bad); border-color: var(--bad); }
+  .muted { color: var(--muted); font-size: 13px; }
+  .stats { display: flex; gap: 16px; }
+  .stat { border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; min-width: 140px; }
+  .stat b { display: block; font-size: 24px; font-weight: 500; }
+  form.apply { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  form.apply label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  form.apply .full { grid-column: 1 / -1; }
+  pre { white-space: pre-wrap; font-size: 12px; color: var(--muted); }
+  #login[hidden], #app[hidden] { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>雲上寺 · 平台後台</h1>
+  <span class="muted" id="region"></span>
+</header>
+<main>
+  <section id="login">
+    <h2>登入</h2>
+    <form id="login-form" class="row">
+      <label for="token" class="muted">管理員令牌（伺服器環境變數 ADMIN_TOKEN）</label>
+      <input id="token" type="password" autocomplete="current-password" required>
+      <button type="submit">進入</button>
+    </form>
+    <p class="muted" id="login-msg"></p>
+  </section>
+
+  <div id="app" hidden>
+    <section>
+      <h2>即時狀態</h2>
+      <div class="stats" id="stats"></div>
+    </section>
+
+    <section>
+      <h2>開廟申請審核</h2>
+      <p class="muted">自稱寺、廟、宮、觀、神社者須附宗教活動場所登記證；未認證者只能以「文化空間」名義開設。審核通過即建立分寺並上線。</p>
+      <table>
+        <thead><tr><th>申請</th><th>類型 / 套餐</th><th>場景</th><th>證明</th><th>狀態</th><th>操作</th></tr></thead>
+        <tbody id="apps"></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>場景包註冊表</h2>
+      <p class="muted">場景包放在 <code>scenes/&lt;id&gt;/manifest.json</code>，超出性能預算或缺少合規模式會被拒收。</p>
+      <div class="row"><button id="reload" class="secondary" type="button">重新載入場景包</button></div>
+      <table>
+        <thead><tr><th>ID</th><th>名稱</th><th>文化</th><th>上架地區</th><th>合規模式</th><th>座位</th><th>授權</th></tr></thead>
+        <tbody id="scenes"></tbody>
+      </table>
+      <pre id="rejected"></pre>
+    </section>
+
+    <section>
+      <h2>代填申請（測試用）</h2>
+      <form class="apply" id="apply-form">
+        <label>申請人<input name="applicant" required></label>
+        <label>聯絡方式<input name="contact" required></label>
+        <label>名稱<input name="name" required maxlength="24"></label>
+        <label>機構類型
+          <select name="orgType">
+            <option value="temple">寺院 / 道觀 / 神社</option><option value="memorial">陵園 / 殯葬</option>
+            <option value="tourism">文旅 / 博物館</option><option value="culture">冥想 / 文化空間</option><option value="family">家族祠堂</option>
+          </select></label>
+        <label>套餐
+          <select name="tier"><option value="starter">入門版</option><option value="standard">標準版</option><option value="flagship">旗艦版</option></select></label>
+        <label>場景模板<select name="sceneId" id="scene-select"></select></label>
+        <label class="full">登記證明（檔案編號或連結）<input name="certificateRef"></label>
+        <label class="full">簡介<textarea name="intro" rows="2" maxlength="300"></textarea></label>
+        <div class="full row"><button type="submit">送出申請</button><span class="muted" id="apply-msg"></span></div>
+      </form>
+    </section>
+  </div>
+</main>
+<script type="module" src="/admin/admin.js"></script>
+</body>
+</html>

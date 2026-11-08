@@ -1,0 +1,27 @@
+{
+  "id": "example-scenic-spot",
+  "version": 1,
+  "name": { "zh-Hant": "示例景點", "zh-Hans": "示例景点" },
+  "culture": "zh-buddhist",
+  "regions": ["cn"],
+  "complianceModes": ["cultural"],
+  "geo": { "lat": 30.0, "lng": 120.0, "province": "", "city": "" },
+  "license": { "status": "licensed", "expires": "2028-12-31", "partner": "景区或寺院名称", "documentRef": "contracts/xxx.pdf" },
+  "render": {
+    "builder": null,
+    "gltf": "assets/scene.glb",
+    "splat": "assets/background.splat",
+    "lods": ["assets/scene_lod1.glb", "assets/scene_lod2.glb"]
+  },
+  "budget": { "triangles": 280000, "drawCalls": 140, "textureMB": 22, "firstScreenMB": 2.8 },
+  "environment": { "sky": "local-time", "seasons": true, "fog": { "color": "#c9c2b6", "near": 20, "far": 120 }, "ambience": "mountain-wind" },
+  "walkArea": { "minX": -20, "maxX": 20, "minZ": -30, "maxZ": 20 },
+  "spawn": { "x": 0, "z": 18, "ry": 3.14159 },
+  "seatGrid": { "x0": -6.75, "z0": -20, "dx": 1.5, "dz": 1.12, "cols": 10, "rows": 10, "ry": 3.14159 },
+  "slots": [
+    { "id": "gate", "type": "gate", "x": 0, "z": 19 },
+    { "id": "lamp-wall", "type": "lamp_wall", "x": -8, "z": -5 },
+    { "id": "wish-wall", "type": "wish_wall", "x": 8, "z": -5 },
+    { "id": "photo-1", "type": "photo_spot", "x": 0, "z": 5 }
+  ]
+}

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14110f">
+<title>雲上寺</title>
+<meta name="description" content="打開就能進入的線上寺院。安靜地坐一會兒，上一炷香。">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three/build/three.module.js",
+    "three/addons/": "/vendor/three/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="scene" aria-label="雲上寺三維場景"></canvas>
+
+<!-- 2.1 首次进入：黑屏淡入 + 一句引导 + 选择心情 -->
+<section id="intro" class="overlay intro" aria-live="polite">
+  <div class="intro-inner">
+    <p class="intro-line" data-i18n="intro.line">戴上耳機，慢慢吸一口氣。</p>
+    <button id="enter" class="btn-ghost" type="button" data-i18n="intro.enter">進入山門</button>
+    <div id="moods" class="moods" hidden>
+      <p class="moods-q" data-i18n="mood.q">今天的心情是？</p>
+      <div class="mood-list">
+        <button type="button" data-mood="anxious" data-i18n="mood.anxious">有點焦慮</button>
+        <button type="button" data-mood="tired" data-i18n="mood.tired">很疲憊</button>
+        <button type="button" data-mood="missing" data-i18n="mood.missing">想念某人</button>
+        <button type="button" data-mood="seeking" data-i18n="mood.seeking">有所求</button>
+        <button type="button" data-mood="browsing" data-i18n="mood.browsing">只是看看</button>
+      </div>
+    </div>
+    <p id="intro-status" class="intro-status"></p>
+  </div>
+</section>
+
+<header id="topbar" class="hud topbar" hidden>
+  <div class="temple">
+    <span id="temple-name" class="temple-name">雲上寺</span>
+    <span id="temple-label" class="badge" hidden></span>
+  </div>
+  <div class="presence">
+    <span id="online-line"></span>
+    <span class="sep">·</span>
+    <span id="incense-line"></span>
+  </div>
+  <button id="me-chip" class="me-chip" type="button" aria-label="我的修行">
+    <span id="me-name"></span>
+    <span id="me-rank" class="rank"></span>
+    <span id="me-merit" class="merit"></span>
+  </button>
+</header>
+
+<nav id="actions" class="hud actions" hidden aria-label="動作">
+  <button type="button" data-act="gassho"><span class="glyph">合</span><span data-i18n="act.gassho">合掌</span></button>
+  <button type="button" data-act="bow" data-ritual><span class="glyph">拜</span><span data-i18n="act.bow">問訊</span></button>
+  <button type="button" data-act="incense" data-ritual class="primary"><span class="glyph">香</span><span data-i18n="act.incense">上香</span></button>
+  <button type="button" data-act="fortune" data-ritual><span class="glyph">籤</span><span data-i18n="act.fortune">求籤</span></button>
+  <button type="button" data-act="muyu" data-ritual><span class="glyph">木</span><span data-i18n="act.muyu">木魚</span></button>
+  <button type="button" data-act="beads" data-ritual><span class="glyph">珠</span><span data-i18n="act.beads">念珠</span></button>
+  <button type="button" data-act="sit"><span class="glyph">坐</span><span data-i18n="act.sit">靜坐</span></button>
+  <button type="button" data-act="wish"><span class="glyph">願</span><span data-i18n="act.wish">祈願</span></button>
+</nav>
+
+<div id="hint" class="hud hint" hidden></div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<!-- 静坐：呼吸引导 -->
+<div id="breath" class="breath" hidden>
+  <div class="breath-ring"><div class="breath-core"></div></div>
+  <p id="breath-word" class="breath-word"></p>
+  <p id="breath-time" class="breath-time"></p>
+  <button id="breath-stop" type="button" class="btn-ghost small" data-i18n="sit.stand">起身</button>
+</div>
+
+<!-- 上香：长按点燃 -->
+<div id="incense-panel" class="panel bottom-panel" hidden>
+  <p id="incense-tip" class="panel-tip" data-i18n="incense.hold">長按點燃三炷清香</p>
+  <button id="incense-hold" type="button" class="hold-btn" aria-describedby="incense-tip">
+    <svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" class="track"/><circle cx="50" cy="50" r="44" class="fill" id="incense-ring"/></svg>
+    <span data-i18n="incense.light">點香</span>
+  </button>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
+<!-- 求签 + 掷筊 -->
+<div id="fortune-panel" class="panel modal" hidden role="dialog" aria-modal="true" aria-labelledby="fortune-title">
+  <h2 id="fortune-title" data-i18n="fortune.title">求籤</h2>
+  <div id="fortune-stage" class="fortune-stage">
+    <div id="tube" class="tube" aria-hidden="true">
+      <div class="tube-sticks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="tube-body"></div>
+    </div>
+    <div id="jiao" class="jiao" hidden aria-hidden="true"><span class="block a"></span><span class="block b"></span></div>
+  </div>
+  <p id="fortune-msg" class="panel-tip"></p>
+  <div class="row">
+    <button id="fortune-shake" type="button" class="btn" data-i18n="fortune.shake">搖籤</button>
+    <button id="fortune-jiao" type="button" class="btn" hidden data-i18n="fortune.jiao">擲筊請示</button>
+  </div>
+  <article id="lot" class="lot" hidden>
+    <header><span id="lot-no"></span><span id="lot-level" class="lot-level"></span></header>
+    <div id="lot-poem" class="lot-poem"></div>
+    <p id="lot-meaning" class="lot-meaning"></p>
+    <div id="lot-advice" class="lot-advice" role="tablist"></div>
+    <p id="lot-advice-text" class="lot-advice-text"></p>
+    <p class="fineprint" data-i18n="fortune.fineprint">籤文僅供心意參考，不作任何靈驗承諾。</p>
+    <button id="lot-share" type="button" class="btn-ghost small" data-i18n="fortune.share">存成圖片</button>
+  </article>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
+<!-- 木鱼 / 念珠 -->
+<div id="count-panel" class="panel bottom-panel" hidden>
+  <p id="count-title" class="panel-tip"></p>
+  <button id="count-pad" type="button" class="count-pad"><span id="count-n">0</span></button>
+  <p id="count-sub" class="fineprint"></p>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
+<!-- 愿望墙 -->
+<div id="wish-panel" class="panel modal" hidden role="dialog" aria-modal="true" aria-labelledby="wish-title">
+  <h2 id="wish-title" data-i18n="wish.title">祈願牌</h2>
+  <form id="wish-form" class="wish-form">
+    <label for="wish-text" data-i18n="wish.label">寫下你的心願（60 字以內）</label>
+    <textarea id="wish-text" maxlength="60" rows="2" required></textarea>
+    <label class="check"><input type="checkbox" id="wish-anon" checked> <span data-i18n="wish.anon">匿名掛上</span></label>
+    <button type="submit" class="btn" data-i18n="wish.hang">掛上祈願牌</button>
+  </form>
+  <p id="wish-support" class="support" hidden></p>
+  <ul id="wish-list" class="wish-list"></ul>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
+<!-- 对他人致意 -->
+<div id="greet-menu" class="greet-menu" hidden role="menu">
+  <p id="greet-name"></p>
+  <button type="button" role="menuitem" data-greet="gassho" data-i18n="greet.gassho">合掌</button>
+  <button type="button" role="menuitem" data-greet="bow" data-i18n="greet.bow">頂禮</button>
+  <button type="button" role="menuitem" data-greet="rejoice" data-i18n="greet.rejoice">隨喜</button>
+  <button type="button" role="menuitem" data-greet="wellwish" data-i18n="greet.wellwish">願你安好</button>
+</div>
+
+<!-- 我的修行 -->
+<div id="me-panel" class="panel modal" hidden role="dialog" aria-modal="true" aria-labelledby="me-title">
+  <h2 id="me-title" data-i18n="me.title">我的修行</h2>
+  <dl id="me-stats" class="me-stats"></dl>
+  <p class="fineprint" data-i18n="me.note">功德來自靜坐、禮拜與善念，買不到，也不必和誰比。</p>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
+<noscript>雲上寺需要啟用 JavaScript。</noscript>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

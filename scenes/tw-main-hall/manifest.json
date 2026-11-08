@@ -1,0 +1,41 @@
+{
+  "id": "tw-main-hall",
+  "version": 1,
+  "name": { "zh-Hant": "雲上寺 · 大雄寶殿", "zh-Hans": "云上寺 · 大雄宝殿", "en": "Cloud Sanctuary · Main Hall" },
+  "culture": "zh-buddhist",
+  "regions": ["tw", "overseas"],
+  "complianceModes": ["ritual", "cultural"],
+  "geo": null,
+  "license": { "status": "original", "expires": null, "partner": null },
+  "render": {
+    "builder": "procedural:cn-hall-v1",
+    "gltf": null,
+    "splat": null,
+    "lods": []
+  },
+  "budget": { "triangles": 140000, "drawCalls": 110, "textureMB": 4, "firstScreenMB": 0.8 },
+  "environment": {
+    "sky": "local-time",
+    "seasons": true,
+    "fog": { "color": "#c9c2b6", "near": 18, "far": 95 },
+    "ambience": "mountain-wind",
+    "palette": { "wood": "#7a2e22", "roof": "#3b3a38", "stone": "#9b958b", "gold": "#c9a24a" }
+  },
+  "hall": { "x0": -12, "x1": 12, "z0": -30, "z1": -12, "floorY": 0.9, "steps": { "x": 0, "width": 7 } },
+  "walkArea": { "minX": -13, "maxX": 13, "minZ": -27.5, "maxZ": 14 },
+  "spawn": { "x": 0, "z": 12, "ry": 3.14159 },
+  "seatGrid": { "x0": -6.75, "z0": -24.2, "dx": 1.5, "dz": 1.12, "cols": 10, "rows": 10, "ry": 3.14159 },
+  "slots": [
+    { "id": "gate", "type": "gate", "x": 0, "z": 13.5 },
+    { "id": "burner-main", "type": "incense_burner", "x": 0, "z": -4, "radius": 1.4 },
+    { "id": "lantern-1", "type": "photo_spot", "x": -4, "z": 2 },
+    { "id": "lantern-2", "type": "photo_spot", "x": 4, "z": 2 },
+    { "id": "lantern-3", "type": "photo_spot", "x": -4, "z": -7.5 },
+    { "id": "lantern-4", "type": "photo_spot", "x": 4, "z": -7.5 },
+    { "id": "bell", "type": "bell", "x": 10, "z": -5 },
+    { "id": "wish-wall", "type": "wish_wall", "x": -10, "z": -4, "ry": 1.5708 },
+    { "id": "altar", "type": "main_altar", "x": 0, "z": -28 },
+    { "id": "fortune", "type": "fortune_table", "x": -10, "z": -20, "ry": 1.5708 },
+    { "id": "muyu", "type": "muyu", "x": 10, "z": -20, "ry": -1.5708 }
+  ]
+}

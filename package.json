@@ -1,0 +1,17 @@
+{
+  "name": "simiao",
+  "version": "0.1.0",
+  "description": "云上寺 · 多人在线 3D 心灵空间（P0 原型）",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test \"test/*.test.js\"",
+    "loadtest": "node tools/loadtest.mjs",
+    "vendor:three": "node tools/vendor-three.mjs"
+  }
+}
