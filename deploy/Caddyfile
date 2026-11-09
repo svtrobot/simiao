@@ -1,0 +1,5 @@
+# 把 your-domain.com 换成你的域名（DNS 已指向服务器）。Caddy 自动申请 HTTPS 证书并支持 WebSocket。
+your-domain.com {
+	encode gzip
+	reverse_proxy 127.0.0.1:8787
+}

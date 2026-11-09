@@ -1,0 +1,19 @@
+# 本地或单机部署：docker compose up -d --build
+services:
+  simiao:
+    build:
+      context: .
+      args:
+        VENDOR_THREE: "false"   # 大陆部署改为 "true"，three.js 由本机提供
+    image: simiao:latest
+    restart: unless-stopped
+    ports:
+      - "8787:8787"             # 线上请改为 "127.0.0.1:8787:8787"，前面放 Caddy / Nginx 做 HTTPS
+    environment:
+      REGION: tw                # tw | overseas | cn
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}   # 在 .env 里设置长随机串以开启 /admin
+      ROOM_CAPACITY: 100
+    volumes:
+      - simiao-data:/data
+volumes:
+  simiao-data:

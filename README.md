@@ -17,7 +17,10 @@ ADMIN_TOKEN=换成长随机串 npm start   # 同时开启平台后台 /admin
 npm test                  # 22 项服务端测试（房间、分线、功德、签、合规、审核）
 npm run loadtest          # 压测：默认 200 人、20 秒
 npm run vendor:three      # 把 three.js 下载到 client/vendor（自托管，大陆必须）
+docker compose up -d --build   # 容器方式（先把 .env.example 复制为 .env）
 ```
+
+上线到服务器：`docker compose up -d --build`，再用 `deploy/Caddyfile` 让 Caddy 自动配置 HTTPS（摇手机求签与 WSS 都需要 HTTPS）。
 
 打开首页 → 「进入山门」→ 选心情 → 进殿。多开几个浏览器窗口即可看到彼此。
 
@@ -83,3 +86,4 @@ tools/             压测、three.js 自托管
 - [场景包规范](docs/SCENE_PACKAGE.md)
 - [合规与地区模式](docs/COMPLIANCE.md)
 - [路线图](docs/ROADMAP.md)
+- [设计资料：全面开发设计规划、泥生角色设计与 3D 参考渲染](docs/design/README.md)
