@@ -8,6 +8,8 @@ export const HARD_BUDGET = { triangles: 300000, drawCalls: 150, textureMB: 25, f
 export const SLOT_TYPES = new Set([
   'incense_burner', 'fortune_table', 'muyu', 'bell', 'wish_wall', 'lamp_wall', 'seat', 'photo_spot',
   'paper_brazier', 'ancestor_hall', 'main_altar', 'gate',
+  // scenery that also blocks walking: landmark tree (r), pond (w × d)
+  'tree', 'pond',
 ]);
 const REGION_IDS = new Set(['tw', 'overseas', 'cn']);
 const MODES = new Set(['ritual', 'cultural']);

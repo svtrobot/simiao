@@ -5,6 +5,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as TX from './textures.js';
+import { addShrine, STATUE_MATERIALS } from './statue.js';
+import { addInterior, interiorMaterials } from './interior.js';
+import { addLandscape, landscapeMaterials } from './landscape.js';
 
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 const tmpQ = new THREE.Quaternion();
@@ -101,7 +104,7 @@ export function buildTemple(manifest, { quality, season, plaqueText }) {
 
   const mat = {
     ground: new THREE.MeshStandardMaterial({ map: grassTex, roughness: 1 }),
-    gravel: new THREE.MeshStandardMaterial({ map: gravelTex, roughness: 0.95 }),
+    gravel: new THREE.MeshStandardMaterial({ map: gravelTex, color: '#b9b1a4', roughness: 0.95 }), // tinted: bare gravel blew out to white at noon
     stone: new THREE.MeshStandardMaterial({ map: stoneTex, roughness: 0.9 }),
     stoneDark: new THREE.MeshStandardMaterial({ color: '#6f6a62', roughness: 0.92 }),
     floor: new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.62, color: '#d8c4ad' }),
@@ -110,7 +113,7 @@ export function buildTemple(manifest, { quality, season, plaqueText }) {
     gold: new THREE.MeshStandardMaterial({ color: pal.gold, metalness: 0.85, roughness: 0.32 }),
     roof: new THREE.MeshStandardMaterial({ map: roofTex, roughness: 0.75, side: THREE.DoubleSide }),
     ridge: new THREE.MeshStandardMaterial({ color: '#2b2a29', roughness: 0.7 }),
-    plaster: new THREE.MeshStandardMaterial({ color: '#d9cfc0', roughness: 0.95 }),
+    plaster: new THREE.MeshStandardMaterial({ color: '#c9b894', roughness: 0.95 }),
     lattice: new THREE.MeshStandardMaterial({ color: '#5c2219', roughness: 0.55 }),
     bronze: new THREE.MeshStandardMaterial({ color: '#6b5133', metalness: 0.8, roughness: 0.42 }),
     wood: new THREE.MeshStandardMaterial({ color: '#6a4a33', roughness: 0.7 }),
@@ -121,6 +124,9 @@ export function buildTemple(manifest, { quality, season, plaqueText }) {
     mountain: new THREE.MeshStandardMaterial({ color: '#6c7686', roughness: 1, flatShading: true }),
     tablet: new THREE.MeshStandardMaterial({ color: '#d6bd8f', roughness: 0.8 }),
     ribbon: new THREE.MeshStandardMaterial({ color: '#b23a2a', roughness: 0.8 }),
+    ...STATUE_MATERIALS(),
+    ...interiorMaterials(),
+    ...landscapeMaterials(season),
   };
 
   const B = new Batch();
@@ -192,32 +198,19 @@ export function buildTemple(manifest, { quality, season, plaqueText }) {
     B.add('ridge', tor, M(hcx + sx * (ridgeLen / 2 + 0.2), colTop + 4.55, hcz, 0, 0, sx > 0 ? -0.4 : Math.PI + 0.4));
     B.add('gold', sph, M(hcx + sx * (ridgeLen / 2 + 0.25), colTop + 4.15, hcz, 0, 0, 0, 0.16));
   }
-  // ceiling under roof so the inside is not open to the sky
-  B.add('beam', box, M(hcx, colTop + 0.85, hcz, 0, 0, 0, hw - 0.4, 0.12, hd - 0.4));
-
   // ---- altar & seated figure (自建模，庄重、无戏谑) ----
   const altar = slot.altar;
+  const shrineExtras = [];
   if (altar) {
     const ax = altar.x, az = altar.z;
-    B.add('lacquer', box, M(ax, floorY + 0.6, az, 0, 0, 0, 8, 1.2, 2.6));
-    B.add('gold', box, M(ax, floorY + 1.22, az, 0, 0, 0, 8.1, 0.06, 2.7));
-    B.add('gold', lathe([[0, 0], [1.25, 0.05], [1.45, 0.25], [1.2, 0.45], [1.5, 0.62], [1.1, 0.8], [0, 0.82]], 28), M(ax, floorY + 1.25, az));
-    // robe silhouette (seated), head, ushnisha
-    B.add('gold', lathe([[0, 0], [1.25, 0], [1.3, 0.35], [1.05, 0.6], [0.78, 1.25], [0.7, 1.75], [0.45, 2.05], [0.28, 2.15], [0, 2.18]], 28), M(ax, floorY + 2.05, az, 0, 0, 0, 1, 1, 0.8));
-    B.add('gold', sph, M(ax, floorY + 4.6, az, 0, 0, 0, 0.42, 0.5, 0.42));
-    B.add('gold', sph, M(ax, floorY + 5.1, az, 0, 0, 0, 0.17));
-    // hands in meditation mudra resting on lap
-    B.add('gold', sph, M(ax, floorY + 2.75, az - 0.95, 0, 0, 0, 0.42, 0.14, 0.26));
-    // offering table
-    B.add('lacquer', box, M(ax, floorY + 0.5, az + 2.4, 0, 0, 0, 3.4, 1.0, 0.9));
-    B.add('cloth', box, M(ax, floorY + 0.55, az + 2.86, 0, 0, 0, 3.0, 0.9, 0.02));
-    B.add('bronze', lathe([[0, 0], [0.2, 0.02], [0.28, 0.14], [0.26, 0.24], [0, 0.24]], 18), M(ax, floorY + 1.0, az + 2.4));
-    for (const sx of [-1, 1]) {
-      B.add('gold', cyl, M(ax + sx * 1.3, floorY + 1.18, az + 2.4, 0, 0, 0, 0.08, 0.36, 0.08));
-      B.add('cloth', cyl, M(ax + sx * 1.3, floorY + 1.5, az + 2.4, 0, 0, 0, 0.05, 0.3, 0.05));
-      B.add('leaf', sph, M(ax + sx * 0.7, floorY + 1.12, az + 2.4, 0, 0, 0, 0.16));
-    }
+    // deep enough that the lotus plinth (r ≈ 1.6) does not overhang the front edge
+    B.add('lacquer', box, M(ax, floorY + 0.6, az + 0.05, 0, 0, 0, 8, 1.2, 3.3));
+    B.add('gold', box, M(ax, floorY + 1.22, az + 0.05, 0, 0, 0, 8.1, 0.06, 3.4));
+    // 釋迦牟尼佛坐像 + 迦葉、阿難（statue.js）
+    shrineExtras.push(...addShrine(B, M, { x: ax, topY: floorY + 1.25, z: az, width: 8 }));
   }
+  // ceiling, 藻井, offering table, cushions, banners, lanterns, couplets, murals (interior.js)
+  const inside = addInterior(B, M, { hall, floorY, colTop, frontZ, altar });
 
   // ---- courtyard furniture ----
   const lanternPos = manifest.slots.filter((s) => s.id.startsWith('lantern'));
@@ -299,31 +292,11 @@ export function buildTemple(manifest, { quality, season, plaqueText }) {
     for (const sx of [-1, 1]) B.add('roof', hipRoof({ halfW: 1.6, halfD: 0.8, ridgeHalf: 0.9, ridgeY: 5.5, eaveY: 4.75, lift: 0.3, flare: 0.2, nu: 10, nv: 4 }), M(gx + sx * 4.0, -0.3, gz));
   }
 
-  // ---- trees & mountains ----
-  const treeSpots = [];
-  for (let i = 0; i < 70; i++) {
-    const side = i % 2 ? 1 : -1;
-    const x = side * (15 + rnd() * 22), z = -42 + rnd() * 64;
-    treeSpots.push([x, z]);
-  }
-  for (let i = 0; i < 26; i++) treeSpots.push([(rnd() - 0.5) * 40, -34 - rnd() * 14]);
-  treeSpots.forEach(([x, z], i) => {
-    const s = 0.8 + rnd() * 0.7;
-    if (i % 3) {
-      B.add('bark', cyl8, M(x, 1.2 * s, z, 0, 0, 0, 0.18 * s, 2.4 * s, 0.18 * s));
-      for (let k = 0; k < 3; k++) B.add('pine', cone, M(x, (2.4 + k * 1.3) * s, z, 0, rnd() * 3, 0, (2.2 - k * 0.55) * s, 2.2 * s, (2.2 - k * 0.55) * s));
-    } else {
-      B.add('bark', cyl8, M(x, 1.0 * s, z, 0, 0, 0, 0.16 * s, 2 * s, 0.16 * s));
-      for (let k = 0; k < 4; k++) B.add('leaf', new THREE.IcosahedronGeometry(1, 0), M(x + (rnd() - 0.5) * 1.6 * s, (2.6 + rnd()) * s, z + (rnd() - 0.5) * 1.6 * s, rnd(), rnd(), rnd(), (1.1 + rnd() * 0.5) * s));
-    }
-  });
-  for (let i = 0; i < 26; i++) {
-    const a = (i / 26) * Math.PI * 2, r = 120 + rnd() * 60;
-    const h = 28 + rnd() * 46;
-    B.add('mountain', new THREE.ConeGeometry(1, 1, 6), M(Math.cos(a) * r, h / 2 - 2, Math.sin(a) * r - 20, 0, rnd(), 0, 30 + rnd() * 30, h, 30 + rnd() * 30));
-  }
+  // ---- mountains, forest, courtyard walls, landmark trees, ponds (landscape.js) ----
+  const land = addLandscape(B, M, { manifest, hall, season, quality });
 
   const group = B.build(mat);
+  for (const m of land.extras) group.add(m);
 
   // ---- dynamic / special objects ----
   // 匾额
@@ -336,19 +309,18 @@ export function buildTemple(manifest, { quality, season, plaqueText }) {
     group.add(gp);
   }
 
-  // halo behind the figure (soft emissive)
-  if (altar) {
-    const halo = new THREE.Mesh(new THREE.CircleGeometry(1.1, 40), new THREE.MeshBasicMaterial({ color: '#f3d58e', transparent: true, opacity: 0.22, depthWrite: false }));
-    halo.position.set(altar.x, floorY + 4.6, altar.z - 0.55);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.04, 8, 48), mat.gold);
-    ring.position.copy(halo.position);
-    group.add(halo, ring);
-  }
+  // mandorla (背光) and textured / glowing interior pieces
+  for (const m of shrineExtras) group.add(m);
+  for (const m of inside.extras) group.add(m);
 
   // cushions (蒲团) — one instanced draw call for all seats
   const seats = manifest.seats || [];
-  const cushion = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.36, 0.4, 0.14, 20), new THREE.MeshStandardMaterial({ color: '#b08a4a', roughness: 0.95 }), seats.length);
-  seats.forEach((s, i) => cushion.setMatrixAt(i, M(s.x, floorY + 0.07, s.z)));
+  // 蒲團: puffed round straw cushion with coiled rings (one instanced draw call)
+  const puff = [[0, 0], [0.3, 0], [0.37, 0.02], [0.4, 0.06], [0.39, 0.11], [0.34, 0.15], [0.2, 0.17], [0, 0.17]];
+  const cushionGeo = lathe(puff, 16);
+  const cushionTex = TX.cushionWeave();
+  const cushion = new THREE.InstancedMesh(cushionGeo, new THREE.MeshStandardMaterial({ map: cushionTex, color: '#c8a46a', roughness: 0.95 }), seats.length);
+  seats.forEach((s, i) => cushion.setMatrixAt(i, M(s.x, floorY, s.z)));
   cushion.receiveShadow = true; cushion.castShadow = quality === 'high';
   group.add(cushion);
 
@@ -363,7 +335,6 @@ export function buildTemple(manifest, { quality, season, plaqueText }) {
   };
 
   // warm lights: candles + lanterns (only a few real lights; the rest is emissive)
-  const glowMat = new THREE.MeshBasicMaterial({ color: '#ffcf86' });
   const lanternGlow = new THREE.MeshStandardMaterial({ color: '#2a2018', emissive: '#ffb45e', emissiveIntensity: 0.2 });
   for (const l of lanternPos) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.34), lanternGlow);
@@ -375,15 +346,7 @@ export function buildTemple(manifest, { quality, season, plaqueText }) {
     m.scale.set(1, 1.15, 1);
     m.position.set(sx * 5.9, colTop - 1.4, frontZ + 0.6); group.add(m);
   }
-  const candles = [];
-  if (altar) {
-    for (const sx of [-1, 1]) {
-      const f = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), glowMat);
-      f.scale.set(1, 2, 1);
-      f.position.set(altar.x + sx * 1.3, floorY + 1.72, altar.z + 2.4); group.add(f);
-      candles.push(f);
-    }
-  }
+  const candles = inside.flames;
   const altarLight = new THREE.PointLight('#ffb36b', 14, 16, 1.4);
   if (altar) altarLight.position.set(altar.x, floorY + 2.5, altar.z + 3.2);
   group.add(altarLight);
@@ -438,7 +401,9 @@ export function buildTemple(manifest, { quality, season, plaqueText }) {
     redLantern.emissiveIntensity = night ? 1.6 : 0.25;
     altarLight.intensity = (night ? 22 : 12) * (0.92 + Math.sin(t * 9) * 0.04 + Math.sin(t * 13.7) * 0.03);
     burnerLight.intensity = stickState.length ? (night ? 6 : 1.5) : 0;
-    for (const c of candles) c.scale.set(1, 2 + Math.sin(t * 11 + c.position.x) * 0.25, 1);
+    for (const c of candles) c.scale.set(1, 2.2 + Math.sin(t * 11 + c.position.x * 7) * 0.3, 1);
+    inside.lanternMat.emissiveIntensity = night ? 0.85 : 0.3; // higher washes the red silk out to cream
+    land.update(t);
     updateSticks();
   }
 

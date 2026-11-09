@@ -14,6 +14,7 @@ export function createCollision(manifest) {
   const steps = h.steps;
   const stepZ0 = h.z1, stepZ1 = h.z1 + 1.8;
   const blockers = [];
+  const rects = [];
   const add = (x, z, r) => blockers.push({ x, z, r });
   const slot = Object.fromEntries(manifest.slots.map((s) => [s.id, s]));
   for (const s of manifest.slots) {
@@ -22,9 +23,16 @@ export function createCollision(manifest) {
     if (s.type === 'bell') add(s.x, s.z, 2.0);
     if (s.type === 'fortune_table') add(s.x, s.z, 0.9);
     if (s.type === 'muyu') add(s.x, s.z, 0.6);
-    if (s.type === 'main_altar') { add(s.x, s.z, 2.4); add(s.x - 3, s.z, 1.4); add(s.x + 3, s.z, 1.4); add(s.x, s.z + 2.4, 1.0); add(s.x - 1.2, s.z + 2.4, 0.8); add(s.x + 1.2, s.z + 2.4, 0.8); }
+    if (s.type === 'main_altar') {
+      add(s.x, s.z, 2.4); add(s.x - 3, s.z, 1.4); add(s.x + 3, s.z, 1.4);
+      // offering table (4.2 m wide), bowl bell and wooden fish at the altar's front corners
+      add(s.x, s.z + 2.4, 1.0); add(s.x - 1.5, s.z + 2.4, 0.75); add(s.x + 1.5, s.z + 2.4, 0.75);
+      add(s.x - 4.6, s.z + 1.5, 0.5); add(s.x + 4.6, s.z + 1.5, 0.5);
+    }
     if (s.type === 'wish_wall') { for (const dz of [-1.6, 0, 1.6]) add(s.x, s.z + dz, 0.5); }
     if (s.type === 'gate') { for (const x of [-4.2, -1.6, 1.6, 4.2]) add(s.x + x, s.z, 0.6); }
+    if (s.type === 'tree') add(s.x, s.z, (s.r || 0.6) + 0.2);
+    if (s.type === 'pond') rects.push({ x0: s.x - s.w / 2 - 0.25, x1: s.x + s.w / 2 + 0.25, z0: s.z - s.d / 2 - 0.25, z1: s.z + s.d / 2 + 0.25 });
   }
   for (const x of [-11.4, -8, -3.9, 3.9, 8, 11.4]) add(x, h.z1 - 0.7, 0.42);
   for (const x of [-8, 8]) for (const z of [-18.5, -24.5]) add(x, z, 0.42);
@@ -45,6 +53,7 @@ export function createCollision(manifest) {
     if (onPlatformFootprint(x, z) && !inHall(x, z) && !onSteps(x, z)) return false; // platform edge / walls
     // crossing between hall and outside only through the steps
     for (const b of blockers) if ((x - b.x) ** 2 + (z - b.z) ** 2 < b.r * b.r) return false;
+    for (const r of rects) if (x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1) return false;
     return true;
   }
 
@@ -56,5 +65,5 @@ export function createCollision(manifest) {
     return [x, z];
   }
 
-  return { heightAt, walkable, slide, blockers, inHall };
+  return { heightAt, walkable, slide, blockers, rects, inHall };
 }

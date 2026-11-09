@@ -23,7 +23,7 @@ docker compose up -d --build   # 容器方式
 
 - `server/` Node 服务，**零依赖**：`realtime/`（自实现 WebSocket、房间、分线）、`domain/`（功德、签、香火愿望、开庙、场景注册表、合规）、`store/`（JSON 文件存储）
 - `client/` 浏览器端，原生 ES Modules + three.js 0.170（import map 指向 `/vendor/three/`，未自托管时服务器 302 到 jsDelivr），**没有构建步骤**
-  - `src/world/` 场景包加载、程序化大殿 `temple.js`、天色季节 `env.js`、碰撞 `collide.js`、烟与落花 `fx.js`
+  - `src/world/` 场景包加载、程序化大殿 `temple.js`（佛像与胁侍 `statue.js`、殿内陈设 `interior.js`、远山松林院墙放生池 `landscape.js`）、天色季节 `env.js`、碰撞 `collide.js`、烟与落花 `fx.js`
   - `src/avatar/nisheng.js` 泥生（形体、五阶段釉色着色器、IK 动作）
   - `src/rituals.js` 各仪式交互；`src/net.js` 房间客户端（插值）
 - `admin/` 平台后台 · `scenes/` 场景包 · `content/` 签诗 · `docs/` 文档 · `test/` · `tools/`

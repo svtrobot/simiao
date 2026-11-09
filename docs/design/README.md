@@ -34,3 +34,12 @@ python render-tools/nisheng3d.py --stage bisque --yaw 35 --w 900 --h 1200 --out 
 python render-tools/nisheng_pose.py --pose incense --out incense.png   # pray | incense | prostrate | return
 ```
 `--stage`：raw / bisque / glaze / kiln / kintsugi。900×1200 单张约 2–4 分钟（纯 CPU）。
+
+## 场景效果截图（程序化 P0 场景）
+
+| 文件 | 内容 |
+|---|---|
+| `scene/courtyard.jpg` | 山门内望大殿：古银杏、石灯、香炉、院墙、远山 |
+| `scene/altar.jpg` | 释迦牟尼佛坐像（莲花须弥座、舟形背光）与迦叶、阿难，供桌陈设 |
+| `scene/hall-night.jpg` | 夜间大殿：藻井天花、幡、宫灯、烛光 |
+| `scene/aerial.jpg` | 俯瞰：院落、放生池、松林与秋枫 |

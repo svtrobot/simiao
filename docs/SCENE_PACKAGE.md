@@ -29,7 +29,7 @@ scenes/<id>/
 | `walkArea` | ✓ | 可行走矩形，服务器据此校验移动 |
 | `spawn` | ✓ | 出生点 `x, z, ry` |
 | `seatGrid` |  | 蒲团网格 `x0, z0, dx, dz, cols, rows, ry`；展开后的座位数决定房间上限 |
-| `slots` | ✓ | 槽位表：`incense_burner fortune_table muyu bell wish_wall lamp_wall seat photo_spot paper_brazier ancestor_hall main_altar gate` |
+| `slots` | ✓ | 槽位表：`incense_burner fortune_table muyu bell wish_wall lamp_wall seat photo_spot paper_brazier ancestor_hall main_altar gate`；景物 `tree`（古树，可选 `r`）、`pond`（放生池，`w`×`d` 米），两者都会阻挡行走 |
 
 坐标单位为米，`ry` 为朝向弧度（0 = 面向 +z，π = 面向 −z）。
 
