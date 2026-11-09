@@ -1,0 +1,5 @@
+# 容器版 Caddy（docker-compose.prod.yml 使用）。域名来自 .env 的 DOMAIN。
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy simiao:8787
+}

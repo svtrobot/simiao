@@ -1,0 +1,26 @@
+# 服务器部署：在 docker-compose.yml 之上叠加 Caddy（自动 HTTPS + WSS）
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# .env 里需要设置 DOMAIN（DNS 已指向服务器）和 ADMIN_TOKEN。
+services:
+  simiao:
+    ports: !reset []            # 不直接对外暴露 8787，只走 Caddy
+    expose:
+      - "8787"
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - simiao
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?在 .env 里设置 DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile.docker:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+volumes:
+  caddy-data:
+  caddy-config:

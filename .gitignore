@@ -5,3 +5,4 @@ client/vendor/
 .DS_Store
 .env
 _git/
+.claude/

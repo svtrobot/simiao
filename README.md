@@ -20,7 +20,7 @@ npm run vendor:three      # 把 three.js 下载到 client/vendor（自托管，�
 docker compose up -d --build   # 容器方式（先把 .env.example 复制为 .env）
 ```
 
-上线到服务器：`docker compose up -d --build`，再用 `deploy/Caddyfile` 让 Caddy 自动配置 HTTPS（摇手机求签与 WSS 都需要 HTTPS）。
+上线到服务器：把仓库放到服务器，`.env` 里填 `ADMIN_TOKEN` 和 `DOMAIN`，执行 `sh deploy/server-setup.sh`。它会按需安装 Docker，再用 `docker-compose.prod.yml` 把应用和 Caddy 一起拉起，Caddy 自动配置 HTTPS（摇手机求签与 WSS 都需要 HTTPS）。如果服务器上已经有 Caddy，可改用 `deploy/Caddyfile`。
 
 打开首页 → 「进入山门」→ 选心情 → 进殿。多开几个浏览器窗口即可看到彼此。
 
