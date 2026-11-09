@@ -4,3 +4,4 @@ client/vendor/
 *.log
 .DS_Store
 .env
+_git/
