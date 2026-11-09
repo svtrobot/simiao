@@ -1,5 +1,6 @@
 // Renderer, sky, light and time of day. 天色跟随用户本地时间，季节跟随月份（2.3）。
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 /** Rough device tier: low-end phones get no shadows and lower pixel ratio (6.3 自动降级). */
 export function detectQuality() {
@@ -26,14 +27,16 @@ export function createRenderer(canvas, quality) {
 /** Key colours for a given local hour (0–24). */
 function palette(hour) {
   const keys = [
-    [0, { top: '#0b0f1c', bottom: '#1b1d29', sun: '#6d7fae', sunI: 0.15, hemi: 0.18, fog: '#14161f', exp: 0.95 }],
-    [5.5, { top: '#2a3150', bottom: '#d49a7a', sun: '#ffb27a', sunI: 0.6, hemi: 0.35, fog: '#9c8577', exp: 1.0 }],
-    [8, { top: '#6f97c2', bottom: '#e8dccb', sun: '#fff1da', sunI: 2.2, hemi: 0.7, fog: '#cfc6b8', exp: 1.0 }],
-    [13, { top: '#5f8fc4', bottom: '#e6e2d8', sun: '#fffaf0', sunI: 2.6, hemi: 0.8, fog: '#d3cdc2', exp: 1.0 }],
-    [17, { top: '#6b7fa8', bottom: '#f0c08e', sun: '#ffc27a', sunI: 1.8, hemi: 0.55, fog: '#c9a988', exp: 1.0 }],
-    [19, { top: '#232a48', bottom: '#a36a5a', sun: '#ff9466', sunI: 0.45, hemi: 0.3, fog: '#5b4a4c', exp: 1.0 }],
-    [21, { top: '#0d1222', bottom: '#2a2633', sun: '#7083b5', sunI: 0.18, hemi: 0.2, fog: '#1a1a24', exp: 0.95 }],
-    [24, { top: '#0b0f1c', bottom: '#1b1d29', sun: '#6d7fae', sunI: 0.15, hemi: 0.18, fog: '#14161f', exp: 0.95 }],
+    // hemi / env are the fill light. three.js r155+ no longer scales light intensity by PI,
+    // so the old values (≈0.7) left shaded sides at ~20% and avatars read as black.
+    [0, { top: '#0b0f1c', bottom: '#1b1d29', sun: '#6d7fae', sunI: 0.15, hemi: 0.35, env: 0.06, fog: '#14161f', exp: 0.95 }],
+    [5.5, { top: '#2a3150', bottom: '#d49a7a', sun: '#ffb27a', sunI: 0.6, hemi: 0.8, env: 0.2, fog: '#9c8577', exp: 1.0 }],
+    [8, { top: '#6f97c2', bottom: '#e8dccb', sun: '#fff1da', sunI: 2.2, hemi: 1.1, env: 0.3, fog: '#cfc6b8', exp: 1.0 }],
+    [13, { top: '#5f8fc4', bottom: '#e6e2d8', sun: '#fffaf0', sunI: 2.6, hemi: 1.2, env: 0.32, fog: '#d3cdc2', exp: 1.0 }],
+    [17, { top: '#6b7fa8', bottom: '#f0c08e', sun: '#ffc27a', sunI: 1.8, hemi: 0.9, env: 0.26, fog: '#c9a988', exp: 1.0 }],
+    [19, { top: '#232a48', bottom: '#a36a5a', sun: '#ff9466', sunI: 0.45, hemi: 0.6, env: 0.15, fog: '#5b4a4c', exp: 1.0 }],
+    [21, { top: '#0d1222', bottom: '#2a2633', sun: '#7083b5', sunI: 0.18, hemi: 0.4, env: 0.07, fog: '#1a1a24', exp: 0.95 }],
+    [24, { top: '#0b0f1c', bottom: '#1b1d29', sun: '#6d7fae', sunI: 0.15, hemi: 0.35, env: 0.06, fog: '#14161f', exp: 0.95 }],
   ];
   let i = 0;
   while (i < keys.length - 2 && hour >= keys[i + 1][0]) i++;
@@ -43,6 +46,7 @@ function palette(hour) {
   return {
     top: mix(a.top, b.top), bottom: mix(a.bottom, b.bottom), sun: mix(a.sun, b.sun), fog: mix(a.fog, b.fog),
     sunI: a.sunI + (b.sunI - a.sunI) * k, hemi: a.hemi + (b.hemi - a.hemi) * k, exp: a.exp + (b.exp - a.exp) * k,
+    env: a.env + (b.env - a.env) * k,
     night: hour < 5.5 || hour >= 19.5,
   };
 }
@@ -72,8 +76,15 @@ export function createEnvironment(scene, renderer, quality, manifest) {
   const fogCfg = manifest.environment?.fog || { near: 20, far: 100 };
   scene.fog = new THREE.Fog(0xcfc6b8, fogCfg.near, fogCfg.far);
 
-  const hemi = new THREE.HemisphereLight(0xdfe6f0, 0x4a3b2e, 0.6);
+  const hemi = new THREE.HemisphereLight(0xdfe6f0, 0x8a7560, 0.6);
   scene.add(hemi);
+  // Soft studio-like reflections so glazed avatars read as ceramic (matches the reference renders).
+  // Skipped on low tier to save the PMREM bake and per-pixel cost.
+  if (quality !== 'low') {
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+  }
   const sun = new THREE.DirectionalLight(0xffffff, 2);
   sun.castShadow = quality !== 'low';
   sun.shadow.mapSize.set(quality === 'high' ? 2048 : 1024, quality === 'high' ? 2048 : 1024);
@@ -95,6 +106,7 @@ export function createEnvironment(scene, renderer, quality, manifest) {
     skyMat.uniforms.bottom.value.copy(p.bottom);
     scene.fog.color.copy(p.fog);
     hemi.intensity = p.hemi;
+    scene.environmentIntensity = p.env;
     hemi.color.copy(p.top).lerp(new THREE.Color('#ffffff'), 0.6);
     sun.color.copy(p.sun);
     sun.intensity = p.sunI;

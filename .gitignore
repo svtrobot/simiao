@@ -6,3 +6,4 @@ client/vendor/
 .env
 _git/
 .claude/
+data-dev/

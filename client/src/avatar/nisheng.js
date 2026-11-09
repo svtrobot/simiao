@@ -108,7 +108,8 @@ function geometry() {
       const z = 0.58 * Math.sqrt(Math.max(1 - (x / 0.68) ** 2 - ((y - 2.62) / 0.47) ** 2, 0)) + 0.003;
       pts.push(new THREE.Vector3(x, y - NECK, z));
     }
-    eyes.push(strip(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 12, 0.019, 6, false)));
+    // thick carved slot, as in the reference renders
+    eyes.push(strip(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 12, 0.032, 8, false)));
   }
 
   // limbs (oriented along +y, centred)
@@ -133,9 +134,10 @@ function geometry() {
 
 // ---------------------------------------------------------------- materials (cached by look)
 const STAGE = {
-  raw: { color: '#9b9184', rough: 0.95, glaze: false },
-  bisque: { color: '#ae7a5e', rough: 0.86, glaze: false },
-  glaze: { color: '#eef1ec', rough: 0.2, glaze: true },
+  // Base colours sampled from the reference renders in docs/design/character/.
+  raw: { color: '#b8ab9a', rough: 0.95, glaze: false },
+  bisque: { color: '#cf8a5e', rough: 0.86, glaze: false },
+  glaze: { color: '#f3f1ea', rough: 0.2, glaze: true },
   kiln: { color: '#b6cec9', rough: 0.18, glaze: true },
   kintsugi: { color: '#b6cec9', rough: 0.18, glaze: true },
 };
@@ -190,12 +192,14 @@ export function clayMaterial(look, part = 'part', { ghost = false } = {}) {
         float nsGrain = nsValue(vObj*55.0+uSeed);
         diffuseColor.rgb *= 1.0 - uGrain*0.5 + uGrain*nsGrain;
         diffuseColor.rgb *= 0.9 + 0.2*nsValue(vObj*4.0+uSeed);
-        float nsE = nsWorley(nsP*1.3);
+        // Large cell network shared by crackle and kintsugi (reference: stages_lineup.png).
+        float nsE = nsWorley(nsP*0.95);
+        float nsNet = 1.0 - smoothstep(0.0, 0.05, nsE);
         if (uPattern > 0.5 && uPattern < 1.5) diffuseColor.rgb *= mix(0.35, 1.0, smoothstep(0.0, 0.05, nsE));
         if (uPattern > 1.5) { float nsSt = nsValue(vec3(vObj.x*40.0, vObj.y*1.5, vObj.z*40.0)+uSeed); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.78,0.74,0.68), smoothstep(0.72,0.9,nsSt)); }
         float nsHair = 1.0 - smoothstep(0.0, 0.025, nsWorley(nsP*2.1+7.0));
-        diffuseColor.rgb *= 1.0 - nsHair*uCrack*0.6;
-        float nsGold = (1.0 - smoothstep(0.0, 0.045, nsE)) * step(0.001, uGold) * step(nsValue(nsP*0.7), uGold+0.15);
+        diffuseColor.rgb *= 1.0 - (nsNet*0.6 + nsHair*0.25)*uCrack;
+        float nsGold = (1.0 - smoothstep(0.0, 0.075, nsE)) * step(0.001, uGold) * step(nsValue(nsP*0.7), uGold+0.15);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.85,0.64,0.24), nsGold);
         if (uPrint > 0.5 && vObj.z < -0.3) {
           vec2 nsQ = (vObj.xy - vec2(0.05, 0.38)) * vec2(1.0, 0.8);
@@ -216,15 +220,15 @@ function shared() {
   if (SHARED) return SHARED;
   const c = document.createElement('canvas'); c.width = 256; c.height = 64;
   const g = c.getContext('2d');
-  g.fillStyle = '#8a8072'; g.fillRect(0, 0, 256, 64);
-  g.strokeStyle = 'rgba(60,52,44,0.55)'; g.setLineDash([5, 4]); g.lineWidth = 2;
+  g.fillStyle = '#cfc6b6'; g.fillRect(0, 0, 256, 64);
+  g.strokeStyle = 'rgba(110,100,88,0.6)'; g.setLineDash([5, 4]); g.lineWidth = 2;
   for (const y of [6, 32, 58]) { g.beginPath(); g.moveTo(0, y); g.lineTo(256, y); g.stroke(); }
   for (const x of [0, 64, 128, 192]) { g.beginPath(); g.moveTo(x + 2, 0); g.lineTo(x + 2, 64); g.stroke(); }
   const tex = new THREE.CanvasTexture(c); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.colorSpace = THREE.SRGBColorSpace;
   SHARED = {
     sash: new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, side: THREE.DoubleSide }),
-    hem: new THREE.MeshStandardMaterial({ color: '#6e665b', roughness: 1, side: THREE.DoubleSide }),
-    stitch: new THREE.MeshBasicMaterial({ color: '#c2b9a8' }),
+    hem: new THREE.MeshStandardMaterial({ color: '#9e968b', roughness: 1, side: THREE.DoubleSide }),
+    stitch: new THREE.MeshBasicMaterial({ color: '#e8e1d4' }),
     brass: new THREE.MeshStandardMaterial({ color: '#c9a060', metalness: 0.9, roughness: 0.35 }),
     eyes: new THREE.MeshStandardMaterial({ color: '#3a2418', roughness: 0.9 }),
     rim: new THREE.MeshStandardMaterial({ color: '#5a3a26', roughness: 0.9 }),
