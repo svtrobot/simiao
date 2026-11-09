@@ -32,6 +32,13 @@ export function createCollision(manifest) {
     if (s.type === 'wish_wall') { for (const dz of [-1.6, 0, 1.6]) add(s.x, s.z + dz, 0.5); }
     if (s.type === 'gate') { for (const x of [-4.2, -1.6, 1.6, 4.2]) add(s.x + x, s.z, 0.6); }
     if (s.type === 'tree') add(s.x, s.z, (s.r || 0.6) + 0.2);
+    if (s.type === 'lamp_wall') {
+      // cabinet footprint (cols × 0.3 m wide, ~0.6 m deep), turned by ry; axis-aligned box around it
+      const half = (s.cols || 18) * 0.15 + 0.35, depth = 0.65, ry = s.ry || 0;
+      const ax = Math.abs(Math.cos(ry)) * half + Math.abs(Math.sin(ry)) * depth;
+      const az = Math.abs(Math.sin(ry)) * half + Math.abs(Math.cos(ry)) * depth;
+      rects.push({ x0: s.x - ax, x1: s.x + ax, z0: s.z - az, z1: s.z + az });
+    }
     if (s.type === 'pond') rects.push({ x0: s.x - s.w / 2 - 0.25, x1: s.x + s.w / 2 + 0.25, z0: s.z - s.d / 2 - 0.25, z1: s.z + s.d / 2 + 0.25 });
   }
   for (const x of [-11.4, -8, -3.9, 3.9, 8, 11.4]) add(x, h.z1 - 0.7, 0.42);
@@ -65,5 +72,39 @@ export function createCollision(manifest) {
     return [x, z];
   }
 
-  return { heightAt, walkable, slide, blockers, rects, inHall };
+  /**
+   * Waypoints for an auto-walk (tap a ritual → walk there). Straight lines get stuck on the
+   * hall platform edge and on round obstacles, so: go through the front steps when entering or
+   * leaving the hall, and step around any blocker circle a leg would cut through.
+   */
+  function route(x0, z0, x1, z1) {
+    const inside = (x, z) => inHall(x, z);
+    const legs = [];
+    if (inside(x0, z0) !== inside(x1, z1)) {
+      const out = { x: steps.x, z: stepZ1 + 0.7 }, inn = { x: steps.x, z: h.z1 - 0.9 };
+      legs.push(...(inside(x0, z0) ? [inn, out] : [out, inn]));
+    }
+    legs.push({ x: x1, z: z1 });
+    const pts = [];
+    let px = x0, pz = z0;
+    for (const p of legs) {
+      for (const b of blockers) {
+        // closest point of segment (px,pz)→p to the blocker centre
+        const dx = p.x - px, dz = p.z - pz, L2 = dx * dx + dz * dz || 1;
+        const t = Math.max(0, Math.min(1, ((b.x - px) * dx + (b.z - pz) * dz) / L2));
+        const cx = px + dx * t, cz = pz + dz * t;
+        const d = Math.hypot(b.x - cx, b.z - cz);
+        if (t <= 0.02 || t >= 0.98 || d >= b.r + 0.15) continue;
+        // detour on the side the path already leans toward
+        const L = Math.sqrt(L2), nx = -dz / L, nz = dx / L;
+        const side = ((cx - b.x) * nx + (cz - b.z) * nz) >= 0 ? 1 : -1;
+        const w = { x: b.x + nx * side * (b.r + 0.6), z: b.z + nz * side * (b.r + 0.6) };
+        if (walkable(w.x, w.z)) { pts.push(w); px = w.x; pz = w.z; }
+      }
+      pts.push(p); px = p.x; pz = p.z;
+    }
+    return pts;
+  }
+
+  return { heightAt, walkable, slide, route, blockers, rects, inHall };
 }

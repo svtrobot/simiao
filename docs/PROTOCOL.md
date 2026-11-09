@@ -24,7 +24,7 @@
   "room": { "id", "temple", "scene", "mode": "ritual|cultural", "capacity", "tickHz", "actions": [...] },
   "members": [ { "id", "n", "name", "look", "rank", "x", "z", "ry", "a", "seat" } ],
   "shadows": [ { "seat", "look" } ],
-  "stats":   { "online", "rooms", "incense" } }
+  "stats":   { "online", "rooms", "incense", "lamps" } }
 ```
 `n` 是房间内的短编号，用于下面的增量。`actions` 是动作码表（只追加，不重排）。
 
@@ -42,7 +42,7 @@
 ### 其他
 | `t` | 说明 |
 |---|---|
-| `stats` | 每 5 秒：全寺在线、房间数、今日香火、影子同修 |
+| `stats` | 每 5 秒：全寺在线、房间数、今日香火、灯墙上的灯数、影子同修；有人点灯时立即补发一次，客户端据 `lamps` 变化重画灯墙 |
 | `merit` | 只发给本人：`action, gained, merit, minutes, rank, look?`（`look` 出现表示阶位提升，泥生换釉） |
 | `fix` | 服务器纠正的位置 |
 | `err` | `seat_taken`、`incense_daily_limit`、`not_in_this_mode` 等 |

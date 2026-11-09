@@ -24,6 +24,15 @@
 <section id="intro" class="overlay intro" aria-live="polite">
   <div class="intro-inner">
     <p class="intro-line" data-i18n="intro.line">戴上耳機，慢慢吸一口氣。</p>
+    <!-- 4.3 祈福卡：別人為你點的燈 -->
+    <article id="card-view" class="card-view" hidden>
+      <div class="card-lamp" aria-hidden="true"><i></i></div>
+      <h1 id="card-title" class="card-title"></h1>
+      <p id="card-kind" class="card-kind"></p>
+      <p id="card-wish" class="card-wish" hidden></p>
+      <p id="card-from" class="card-from"></p>
+      <p id="card-until" class="fineprint"></p>
+    </article>
     <button id="enter" class="btn-ghost" type="button" data-i18n="intro.enter">進入山門</button>
     <div id="moods" class="moods" hidden>
       <p class="moods-q" data-i18n="mood.q">今天的心情是？</p>
@@ -64,6 +73,7 @@
   <button type="button" data-act="muyu" data-ritual><span class="glyph">木</span><span data-i18n="act.muyu">木魚</span></button>
   <button type="button" data-act="beads" data-ritual><span class="glyph">珠</span><span data-i18n="act.beads">念珠</span></button>
   <button type="button" data-act="sit"><span class="glyph">坐</span><span data-i18n="act.sit">靜坐</span></button>
+  <button type="button" data-act="lamp"><span class="glyph">燈</span><span data-i18n="act.lamp">點燈</span></button>
   <button type="button" data-act="wish"><span class="glyph">願</span><span data-i18n="act.wish">祈願</span></button>
 </nav>
 
@@ -134,6 +144,41 @@
   </form>
   <p id="wish-support" class="support" hidden></p>
   <ul id="wish-list" class="wish-list"></ul>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
+<!-- 點燈 / 燈牆 -->
+<div id="lamp-panel" class="panel modal" hidden role="dialog" aria-modal="true" aria-labelledby="lamp-title">
+  <h2 id="lamp-title" data-i18n="lamp.title">點燈</h2>
+  <p id="lamp-count" class="panel-tip"></p>
+  <form id="lamp-form" class="lamp-form">
+    <fieldset id="lamp-kinds" class="lamp-kinds"></fieldset>
+    <div class="seg" role="radiogroup">
+      <label><input type="radio" name="lamp-for" value="self" checked><span data-i18n="lamp.forSelf">為自己</span></label>
+      <label><input type="radio" name="lamp-for" value="other"><span data-i18n="lamp.forOther">為他人</span></label>
+    </div>
+    <label for="lamp-name" id="lamp-name-label" data-i18n="lamp.nameSelf">燈牌上的名字</label>
+    <input id="lamp-name" maxlength="12" autocomplete="off">
+    <label for="lamp-wish" data-i18n="lamp.wish">想說的話（40 字以內，可不填）</label>
+    <input id="lamp-wish" maxlength="40" autocomplete="off">
+    <label class="check"><input type="checkbox" id="lamp-private"> <span data-i18n="lamp.private">這段話只給自己看，不掛在燈牆上</span></label>
+    <p class="fineprint" data-i18n="lamp.rule">每盞燈供奉七天，期滿前兩天內可續燈。燈牆上的名字會隱去中間的字。</p>
+    <button id="lamp-hold" type="submit" class="btn hold-bar"><span data-i18n="lamp.hold">長按點亮</span></button>
+  </form>
+  <div id="lamp-done" class="lamp-done" hidden>
+    <div class="card-lamp" aria-hidden="true"><i></i></div>
+    <p id="lamp-done-text" class="panel-tip"></p>
+    <p id="lamp-done-where" class="fineprint"></p>
+    <div class="row">
+      <button id="lamp-share" type="button" class="btn" hidden data-i18n="lamp.share">把這盞燈告訴他</button>
+      <button id="lamp-image" type="button" class="btn-ghost small" hidden data-i18n="lamp.saveImg">存成圖片</button>
+      <button id="lamp-again" type="button" class="btn-ghost small" data-i18n="lamp.again">再點一盞</button>
+    </div>
+  </div>
+  <p id="lamp-support" class="support" hidden></p>
+  <h3 class="lamp-mine-title" data-i18n="lamp.mine">我的燈</h3>
+  <ul id="lamp-mine" class="lamp-mine"></ul>
+  <p class="fineprint" data-i18n="lamp.fineprint">點燈是心意與陪伴，不作任何靈驗承諾。</p>
   <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
 </div>
 

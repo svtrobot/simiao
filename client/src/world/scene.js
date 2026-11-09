@@ -26,7 +26,7 @@ async function loadPackage(scene, manifest, opts) {
     group.add(gltf.scene);
   }
   // manifest.render.splat → P1: Gaussian-splat layer (far background), mixed with the glTF near field.
-  return { group, anchors: {}, plantIncense() {}, setTablets() {}, update() {}, floorY: 0 };
+  return { group, anchors: {}, plantIncense() {}, setTablets() {}, setLamps: () => new Map(), update() {}, floorY: 0 };
 }
 
 export async function createGame({ canvas, info, session, mood, slug }) {
@@ -37,7 +37,7 @@ export async function createGame({ canvas, info, session, mood, slug }) {
   const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 900);
   const env = createEnvironment(scene, renderer, quality, manifest);
   const season = seasonOf();
-  const temple = await loadPackage(scene, manifest, { quality, season, plaqueText: info.temple.plaque });
+  const temple = await loadPackage(scene, manifest, { quality, season, plaqueText: info.temple.plaque, mode: info.mode });
   scene.add(temple.group);
   const collision = createCollision(manifest);
   const smoke = new Smoke(scene);
@@ -69,6 +69,8 @@ export async function createGame({ canvas, info, session, mood, slug }) {
   const game = {
     controls, net, temple, slug, anchors: temple.anchors, templeName: localName(info.temple.name),
     self: () => selfEntry?.av,
+    me: () => me,
+    setMe(u) { me = { ...me, ...u }; updateMe(me); },
     freeSeat() {
       const taken = new Set([...net.members.values()].map((m) => m.seat).filter(Boolean));
       const seats = manifest.seats || [];
@@ -118,10 +120,15 @@ export async function createGame({ canvas, info, session, mood, slug }) {
     avatars.setShadows(detail.shadows, occupiedSeats());
     showStats(detail.stats);
     game.rituals.refreshWall();
+    game.rituals.refreshLamps();
   });
   net.addEventListener('join', ({ detail }) => avatars.add(detail));
   net.addEventListener('leave', ({ detail }) => avatars.remove(detail.id));
-  net.addEventListener('stats', ({ detail }) => { showStats(detail); avatars.setShadows(detail.shadows, occupiedSeats()); });
+  net.addEventListener('stats', ({ detail }) => {
+    // someone lit (or a lamp went out): redraw the lamp wall
+    if (detail.lamps !== undefined && detail.lamps !== stats?.lamps) game.rituals.refreshLamps();
+    showStats(detail); avatars.setShadows(detail.shadows, occupiedSeats());
+  });
   net.addEventListener('fix', ({ detail }) => { controls.pos.x = detail.x; controls.pos.z = detail.z; });
   net.addEventListener('disconnected', () => toast(t('err.net')));
   net.addEventListener('merit', ({ detail }) => {

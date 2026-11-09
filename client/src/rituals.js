@@ -323,14 +323,188 @@ export function createRituals(game) {
     } catch { /* offline wall is fine */ }
   }
 
+  // ---------- 點燈 / 燈牆 / 祈福卡（3.2、4.3） ----------
+  let lampState = { kinds: [], lamps: [], mine: [] };
+  let lampCells = new Map();
+  const fmtDate = (ms) => new Date(ms).toLocaleDateString(getLocale(), { month: 'long', day: 'numeric' });
+  const kindName = (k) => t(`lamp.kind.${k}`);
+  const cardUrl = (id) => `${location.origin}/c/${id}`;
+
+  let lastHighlight = null; // stays marked when the wall is redrawn because someone else lit a lamp
+  async function refreshLamps({ highlight } = {}) {
+    if (highlight !== undefined) lastHighlight = highlight;
+    try {
+      lampState = await api('GET', `/api/temples/${slug}/lamps`);
+      lampCells = temple.setLamps(lampState.lamps, { highlight: lastHighlight });
+      $('lamp-count').textContent = t('lamp.count', lampState.lamps.length);
+      renderMine();
+    } catch { /* the wall can wait */ }
+    return lampCells;
+  }
+
+  function renderKinds() {
+    const box = $('lamp-kinds');
+    box.replaceChildren(...lampState.kinds.map((k, i) => {
+      const l = document.createElement('label'); l.className = `lamp-kind k-${k}`;
+      const r = document.createElement('input'); r.type = 'radio'; r.name = 'lamp-kind'; r.value = k; r.checked = i === 0;
+      const name = document.createElement('b'); name.textContent = kindName(k);
+      const d = document.createElement('small'); d.textContent = t(`lamp.desc.${k}`);
+      l.append(r, name, d);
+      return l;
+    }));
+  }
+
+  function renderMine() {
+    const ul = $('lamp-mine');
+    if (!lampState.mine.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = t('lamp.none'); ul.replaceChildren(li); return; }
+    ul.replaceChildren(...lampState.mine.map((l) => {
+      const li = document.createElement('li'); li.className = `k-${l.kind}`;
+      const title = document.createElement('span'); title.textContent = t('lamp.for', kindName(l.kind), l.forName);
+      const until = document.createElement('small');
+      const out = l.expiresAt <= Date.now();
+      until.textContent = out ? t('lamp.out') : t('lamp.until', fmtDate(l.expiresAt));
+      li.append(title, until);
+      if (l.renewable) {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-ghost small'; b.textContent = t('lamp.renew');
+        b.onclick = async () => {
+          b.disabled = true;
+          try { await api('POST', `/api/lamps/${l.id}/renew`); toast(t('lamp.renewed'), { gold: true }); await refreshLamps(); } catch { toast(t('err.generic')); b.disabled = false; }
+        };
+        li.append(b);
+      }
+      if (l.cardId && !out) {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-ghost small'; b.textContent = t('lamp.share');
+        b.onclick = () => shareCard(l);
+        li.append(b);
+      }
+      return li;
+    }));
+  }
+
+  function setForOther(other) {
+    $('lamp-name-label').textContent = t(other ? 'lamp.nameOther' : 'lamp.nameSelf');
+    const me = game.me?.() || {};
+    if (!other && !$('lamp-name').value) $('lamp-name').value = me.name || '';
+    if (other && $('lamp-name').value === me.name) $('lamp-name').value = '';
+    $('lamp-name').required = other;
+  }
+
+  async function lamp() {
+    if (busy) return; busy = true;
+    try {
+      if (!(await walkTo(anchors.lamp))) return;
+      act('pray');
+      await refreshLamps();
+      renderKinds();
+      $('lamp-form').hidden = false; $('lamp-done').hidden = true; $('lamp-support').hidden = true;
+      for (const r of document.querySelectorAll('input[name="lamp-for"]')) r.onchange = () => setForOther(r.value === 'other' && r.checked);
+      setForOther(document.querySelector('input[name="lamp-for"]:checked').value === 'other');
+      const done = new Promise((resolve) => openPanel('lamp-panel', resolve));
+      bindHold();
+      await done;
+    } finally { busy = false; idle(); }
+  }
+
+  // 長按點亮: the same unhurried gesture as lighting incense (3.1 手勢)
+  function bindHold() {
+    const btn = $('lamp-hold');
+    let start = 0, raf = 0;
+    const reset = () => { cancelAnimationFrame(raf); start = 0; btn.style.setProperty('--p', '0'); };
+    const tick = () => {
+      const k = Math.min(1, (performance.now() - start) / 900);
+      btn.style.setProperty('--p', String(k));
+      if (k >= 1) { reset(); submitLamp(); return; }
+      raf = requestAnimationFrame(tick);
+    };
+    let pointer = false;
+    btn.onpointerdown = (e) => { pointer = true; e.preventDefault(); if (!$('lamp-form').reportValidity()) return; start = performance.now(); raf = requestAnimationFrame(tick); };
+    btn.onpointerup = btn.onpointerleave = reset;
+    // A tap fires `submit` too — only the keyboard (Enter / assistive tech) may submit without holding.
+    $('lamp-form').onsubmit = (e) => { e.preventDefault(); if (pointer) { pointer = false; return; } submitLamp(); };
+  }
+
+  let lighting = false;
+  async function submitLamp() {
+    if (lighting) return; lighting = true;
+    const forOther = document.querySelector('input[name="lamp-for"]:checked').value === 'other';
+    const body = {
+      kind: document.querySelector('input[name="lamp-kind"]:checked')?.value,
+      forOther, forName: $('lamp-name').value, wish: $('lamp-wish').value, wishPrivate: $('lamp-private').checked,
+    };
+    try {
+      const out = await api('POST', `/api/temples/${slug}/lamps`, body);
+      audio.crackle(0.2); setTimeout(() => audio.bell(0.18), 500);
+      self().pulse(1.2);
+      game.setMe?.(out.me);
+      if (out.merit) toast(t('merit.gain', out.merit));
+      const cells = await refreshLamps({ highlight: out.lamp.id });
+      const cell = cells.get(out.lamp.id);
+      $('lamp-form').hidden = true; $('lamp-done').hidden = false;
+      $('lamp-done-text').textContent = t('lamp.lit', fmtDate(out.lamp.expiresAt));
+      $('lamp-done-where').textContent = cell ? t('lamp.where', cell.row, cell.col) : '';
+      $('lamp-share').hidden = $('lamp-image').hidden = !out.lamp.cardId;
+      $('lamp-share').onclick = () => shareCard(out.lamp);
+      $('lamp-image').onclick = () => cardImage(out.lamp);
+      $('lamp-again').onclick = () => { $('lamp-form').hidden = false; $('lamp-done').hidden = true; $('lamp-wish').value = ''; };
+      if (out.support) {
+        $('lamp-support').hidden = false;
+        $('lamp-support').textContent = `${t('lamp.privateNote')} ${t('wish.support', out.support)}`;
+      }
+      $('lamp-wish').value = '';
+    } catch (err) {
+      const code = err.body?.error;
+      toast(code === 'lamp_limit' ? t('lamp.limit') : code === 'lamp_rejected' ? t('lamp.rejected') : code === 'name_required' ? t('lamp.needName') : t('err.generic'));
+    } finally { lighting = false; }
+  }
+
+  async function shareCard(l) {
+    const url = cardUrl(l.cardId), text = t('card.shareText', l.forName, game.templeName);
+    try {
+      if (navigator.share) { await navigator.share({ title: game.templeName, text, url }); return; }
+    } catch (e) { if (e?.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(`${text}\n${url}`); toast(t('lamp.copied'), { gold: true }); }
+    catch { window.prompt(t('lamp.share'), url); }
+  }
+
+  /** 祈福卡圖：豎版，適合傳給長輩或發在 Story。 */
+  function cardImage(l) {
+    const c = document.createElement('canvas'); c.width = 1080; c.height = 1920;
+    const g = c.getContext('2d');
+    const grd = g.createLinearGradient(0, 0, 0, 1920); grd.addColorStop(0, '#231a14'); grd.addColorStop(1, '#0f0c0a');
+    g.fillStyle = grd; g.fillRect(0, 0, 1080, 1920);
+    const glow = g.createRadialGradient(540, 640, 10, 540, 640, 380);
+    glow.addColorStop(0, 'rgba(255,214,140,0.95)'); glow.addColorStop(0.25, 'rgba(255,170,80,0.45)'); glow.addColorStop(1, 'rgba(255,150,60,0)');
+    g.fillStyle = glow; g.fillRect(140, 240, 800, 800);
+    g.fillStyle = '#c9a24a'; g.beginPath(); g.ellipse(540, 760, 120, 34, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#fff3d6'; g.beginPath(); g.ellipse(540, 660, 26, 70, 0, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#d2ad5e'; g.lineWidth = 6; g.strokeRect(70, 70, 940, 1780);
+    g.textAlign = 'center'; g.fillStyle = '#efe7da';
+    g.font = '600 64px "Noto Serif TC","Songti TC",serif'; g.fillText(t('card.title', game.templeName), 540, 1100);
+    g.fillStyle = '#d2ad5e'; g.font = '500 52px "Noto Serif TC","Songti TC",serif'; g.fillText(t('lamp.for', kindName(l.kind), l.forName), 540, 1200);
+    if (l.wish) { g.fillStyle = '#c9bfb0'; g.font = '400 44px "Noto Sans TC",sans-serif'; wrap(g, `「${l.wish}」`, 540, 1320, 820, 66); }
+    g.fillStyle = '#a49a8c'; g.font = '400 34px "Noto Sans TC",sans-serif';
+    g.fillText(t('card.until', fmtDate(l.expiresAt)), 540, 1640);
+    g.font = '400 30px "Noto Sans TC",sans-serif'; g.fillText(t('lamp.fineprint'), 540, 1760);
+    const a = document.createElement('a'); a.download = `lamp-${l.id}.png`; a.href = c.toDataURL('image/png'); a.click();
+  }
+
+  /** Arriving from a blessing card: walk to the wall and point out that lamp. */
+  async function visitLamp(lampId) {
+    if (!anchors.lamp) return;
+    await walkTo(anchors.lamp);
+    const cells = await refreshLamps({ highlight: lampId });
+    const cell = cells.get(lampId);
+    if (cell) { toast(t('lamp.visit', cell.row, cell.col), { gold: true }); act('pray'); await wait(1600); idle(); }
+  }
+
   $('fortune-shake').onclick = shake;
   $('fortune-jiao').onclick = throwJiao;
   void getLocale;
 
   return {
-    gassho, bow, incense, fortune, wish, sit, stand,
+    gassho, bow, incense, fortune, wish, sit, stand, lamp, visitLamp,
     muyu: () => counter('muyu'), beads: () => counter('bead'),
     get sitting() { return !!sitting; },
-    refreshWall,
+    refreshWall, refreshLamps,
   };
 }

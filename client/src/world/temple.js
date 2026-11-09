@@ -8,6 +8,7 @@ import * as TX from './textures.js';
 import { addShrine, STATUE_MATERIALS } from './statue.js';
 import { addInterior, interiorMaterials } from './interior.js';
 import { addLandscape, landscapeMaterials } from './landscape.js';
+import { addLampWall } from './lampwall.js';
 
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 const tmpQ = new THREE.Quaternion();
@@ -87,7 +88,7 @@ function lathe(points, segs = 24) {
 
 function seeded(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 
-export function buildTemple(manifest, { quality, season, plaqueText }) {
+export function buildTemple(manifest, { quality, season, plaqueText, mode = 'ritual' }) {
   const env = manifest.environment || {};
   const pal = { wood: '#7a2e22', roof: '#3b3a38', stone: '#9b958b', gold: '#c9a24a', ...(env.palette || {}) };
   const hall = manifest.hall;
@@ -210,7 +211,10 @@ export function buildTemple(manifest, { quality, season, plaqueText }) {
     shrineExtras.push(...addShrine(B, M, { x: ax, topY: floorY + 1.25, z: az, width: 8 }));
   }
   // ceiling, 藻井, offering table, cushions, banners, lanterns, couplets, murals (interior.js)
-  const inside = addInterior(B, M, { hall, floorY, colTop, frontZ, altar });
+  const lampSlot = manifest.slots.find((s) => s.type === 'lamp_wall');
+  const inside = addInterior(B, M, { hall, floorY, colTop, frontZ, altar, skipMuralSide: lampSlot ? Math.sign(lampSlot.x) : 0 });
+  // 燈牆 (lampwall.js)
+  const lampWall = lampSlot ? addLampWall(B, M, { slot: lampSlot, floorY: lampSlot.z < hall.z1 && lampSlot.z > hall.z0 ? floorY : 0, mode }) : null;
 
   // ---- courtyard furniture ----
   const lanternPos = manifest.slots.filter((s) => s.id.startsWith('lantern'));
@@ -297,6 +301,7 @@ export function buildTemple(manifest, { quality, season, plaqueText }) {
 
   const group = B.build(mat);
   for (const m of land.extras) group.add(m);
+  if (lampWall) for (const m of lampWall.extras) group.add(m);
 
   // ---- dynamic / special objects ----
   // 匾额
@@ -393,7 +398,9 @@ export function buildTemple(manifest, { quality, season, plaqueText }) {
     wish: ww && { x: ww.x + 1.6, z: ww.z, ry: -Math.PI / 2 },
     bell: bell && { x: bell.x - 2.0, z: bell.z, ry: Math.PI / 2 },
     altar: altar && { x: altar.x, z: altar.z + 4.2, ry: Math.PI },
+    lamp: lampWall?.anchor,
   };
+  const setLamps = (list, opts) => (lampWall ? lampWall.setLamps(list, opts) : new Map());
 
   function update(t, envState) {
     const night = envState.night;
@@ -404,9 +411,10 @@ export function buildTemple(manifest, { quality, season, plaqueText }) {
     for (const c of candles) c.scale.set(1, 2.2 + Math.sin(t * 11 + c.position.x * 7) * 0.3, 1);
     inside.lanternMat.emissiveIntensity = night ? 0.85 : 0.3; // higher washes the red silk out to cream
     land.update(t);
+    lampWall?.update(t, night);
     updateSticks();
   }
 
   group.traverse((o) => { if (o.isMesh && o.name === 'roof') o.castShadow = true; });
-  return { group, anchors, plantIncense, setTablets, update, floorY };
+  return { group, anchors, plantIncense, setTablets, setLamps, update, floorY };
 }

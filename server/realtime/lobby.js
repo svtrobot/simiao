@@ -53,7 +53,7 @@ export class Lobby {
   templeStats(templeId) {
     const t = this._t(templeId);
     if (t.incense === null) t.incense = this.ctx.offerings.incenseToday(templeId);
-    return { online: t.rooms.reduce((s, r) => s + r.size, 0), rooms: t.rooms.length, incense: t.incense };
+    return { online: t.rooms.reduce((s, r) => s + r.size, 0), rooms: t.rooms.length, incense: t.incense, lamps: this.ctx.lamps.count(templeId) };
   }
 
   totalOnline() {
@@ -63,6 +63,13 @@ export class Lobby {
   }
 
   bumpIncense(templeId, total) { this._t(templeId).incense = total; }
+
+  /** A lamp was lit: push fresh stats now so everyone's lamp wall updates without waiting 5 s. */
+  bumpLamps(templeId) {
+    const t = this._t(templeId);
+    const stats = this.templeStats(templeId);
+    for (const r of t.rooms) if (r.size) r.broadcast({ t: 'stats', ...stats, shadows: r._shadows() });
+  }
 
   rememberSitter(templeId, s) {
     const t = this._t(templeId);

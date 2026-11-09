@@ -7,6 +7,7 @@ import { TempleService } from './domain/temples.js';
 import { UserService } from './domain/users.js';
 import { FortuneService } from './domain/fortune.js';
 import { OfferingService } from './domain/offerings.js';
+import { LampService, LAMP_KINDS } from './domain/lamps.js';
 import { record } from './domain/practice.js';
 import { effectiveMode, actionAllowed } from './domain/compliance.js';
 import { Lobby } from './realtime/lobby.js';
@@ -22,6 +23,8 @@ export function createApp(overrides = {}) {
   ctx.templesSvc = new TempleService({ store, scenes, regionPolicy: config.regionPolicy, region: config.region });
   ctx.fortune = new FortuneService({ contentDir: config.contentDir, store, tz: config.regionPolicy.tz });
   ctx.offerings = new OfferingService({ store, tz: config.regionPolicy.tz, hotline: config.regionPolicy.hotline });
+  ctx.lamps = new LampService({ store, hotline: config.regionPolicy.hotline });
+  ctx.lampKinds = LAMP_KINDS;
   ctx.modeOf = (temple, scene) => effectiveMode({ regionPolicy: config.regionPolicy, scene, temple });
   ctx.actionAllowed = actionAllowed;
   ctx.creditMerit = (user, action) => {

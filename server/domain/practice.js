@@ -23,6 +23,8 @@ export const RULES = {
   greet:    { minIntervalMs: 1500, dailyCap: 30,  merit: 1, habit: 'social' },
   wish:     { minIntervalMs: 10000, dailyCap: 3,  merit: 1, habit: 'incense' },
   rejoice:  { minIntervalMs: 1000, dailyCap: 20,  merit: 1, habit: 'social' },
+  // 為他人點燈＝為他人祈福（4.2）；為自己點燈不記功德，付費燈（P1）也不記
+  lamp:     { minIntervalMs: 5000, dailyCap: 3,   merit: 2, habit: 'social' },
   meditate: { minIntervalMs: 0,    dailyCap: 120, merit: 1, habit: 'meditate' }, // 每分钟 1
 };
 

@@ -84,7 +84,10 @@ export class Controls {
   /** Walk to a point; resolves when arrived (or when interrupted → false). */
   goTo({ x, z, ry, run = false }) {
     if (this.target?.resolve) this.target.resolve(false);
-    return new Promise((resolve) => { this.target = { x, z, ry, run, resolve }; });
+    // waypoints (front steps, detours around obstacles), then the destination with its facing
+    const pts = this.collision.route ? this.collision.route(this.pos.x, this.pos.z, x, z) : [{ x, z }];
+    pts[pts.length - 1] = { x, z, ry };
+    return new Promise((resolve) => { this.path = pts; this.target = { ...pts.shift(), run, resolve }; });
   }
 
   place(x, z, ry) { this.pos.set(x, this.collision.heightAt(x, z), z); this.ry = ry; this.yaw = ry + Math.PI; this.target = null; }
@@ -106,10 +109,10 @@ export class Controls {
       const tx = this.target.x - this.pos.x, tz = this.target.z - this.pos.z;
       const d = Math.hypot(tx, tz);
       speed = this.target.run && d > 3 ? RUN_SPEED : WALK_SPEED;
-      if (d < 0.08) {
-        const tgt = this.target; this.target = null;
-        if (tgt.ry !== undefined) this.ry = tgt.ry;
-        tgt.resolve?.(true);
+      if (d < (this.path?.length ? 0.35 : 0.08)) {
+        const tgt = this.target;
+        if (this.path?.length) this.target = { ...this.path.shift(), run: tgt.run, resolve: tgt.resolve };
+        else { this.target = null; if (tgt.ry !== undefined) this.ry = tgt.ry; tgt.resolve?.(true); }
       } else { dx = tx / d; dz = tz / d; if (d < speed * dt) speed = d / dt; }
     }
     if (dx || dz) {

@@ -29,6 +29,7 @@ export function interiorMaterials() {
     cushionRim: new THREE.MeshStandardMaterial({ color: '#8e2a20', roughness: 0.9 }),
     water: new THREE.MeshStandardMaterial({ color: '#cfe0dc', roughness: 0.05, metalness: 0.1 }),
     tassel: new THREE.MeshStandardMaterial({ color: '#a8231a', roughness: 0.9 }),
+    lampWood: new THREE.MeshStandardMaterial({ color: '#3a1a12', roughness: 0.7 }),
   };
 }
 
@@ -37,7 +38,7 @@ export function interiorMaterials() {
  * ctx: { hall, floorY, colTop, frontZ, altar }
  */
 export function addInterior(B, M, ctx) {
-  const { hall, floorY, colTop, frontZ, altar } = ctx;
+  const { hall, floorY, colTop, frontZ, altar, skipMuralSide = 0 } = ctx;
   const extras = [], flames = [];
   const flameMat = new THREE.MeshBasicMaterial({ color: '#ffd28a' });
   const flame = (x, y, z, s = 1) => { const f = new THREE.Mesh(new THREE.SphereGeometry(0.035 * s, 8, 6), flameMat); f.scale.set(1, 2.2, 1); f.position.set(x, y, z); flames.push(f); extras.push(f); };
@@ -139,6 +140,7 @@ export function addInterior(B, M, ctx) {
     screen.position.set(ax, top + 2.35, hall.z0 + 0.52); extras.push(screen);
     const sideMural = new THREE.MeshStandardMaterial({ map: TX.mural({ seed: 47, scale: 0.5 }), roughness: 0.9 });
     for (const s of [-1, 1]) {
+      if (s === skipMuralSide) continue; // that wall holds the lamp wall
       const m = new THREE.Mesh(new THREE.PlaneGeometry(12, 3.4), sideMural);
       m.position.set(s * (hall.x1 - 0.42), floorY + 2.6, (hall.z0 + hall.z1) / 2 - 1.5); m.rotation.y = -s * Math.PI / 2; extras.push(m);
     }

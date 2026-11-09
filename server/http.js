@@ -146,6 +146,35 @@ export function createHandler(ctx) {
     return out;
   });
 
+  // ---- 點燈 / 燈牆 / 祈福卡 ----
+  route('GET', '/api/temples/:slug/lamps', (req, p) => {
+    const t = temple(p.slug);
+    const u = users.byToken(token(req));
+    const mode = ctx.modeOf(t, scenes.get(t.sceneId));
+    return {
+      kinds: ctx.lampKinds[mode],
+      lamps: ctx.lamps.active(t.id).map((l) => ({ ...ctx.lamps.publicView(l), mine: !!u && l.userId === u.id })),
+      mine: u ? ctx.lamps.mine(u.id).filter((l) => l.templeId === t.id).map((l) => ctx.lamps.ownerView(l)) : [],
+    };
+  });
+  route('POST', '/api/temples/:slug/lamps', async (req, p) => {
+    const t = temple(p.slug); ritualOk(t, 'lamp');
+    const u = users.require(token(req));
+    const mode = ctx.modeOf(t, scenes.get(t.sceneId));
+    const out = ctx.lamps.light(u, t.id, mode, await readJson(req));
+    // only a lamp lit for someone else counts as merit (為他人祈福, 4.2)
+    const merit = out.lamp.forOther ? ctx.creditMerit(u, 'lamp') : { counted: false };
+    lobby.bumpLamps(t.id);
+    return { lamp: out.lamp, support: out.support, merit: merit.counted ? merit.merit : 0, me: users.publicView(u) };
+  });
+  route('POST', '/api/lamps/:id/renew', (req, p) => ctx.lamps.renew(users.require(token(req)), p.id));
+  route('GET', '/api/cards/:id', (req, p) => {
+    const c = ctx.lamps.card(p.id);
+    const t = templesSvc.get(c.templeId);
+    if (!t || t.status !== 'live') throw new HttpError(404, 'not_found');
+    return { ...c, temple: { slug: t.slug, name: t.name }, mode: ctx.modeOf(t, scenes.get(t.sceneId)) };
+  });
+
   route('POST', '/api/temples/apply', async (req) => templesSvc.apply(await readJson(req)));
 
   // ---- admin (平台审核) ----

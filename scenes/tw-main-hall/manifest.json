@@ -38,6 +38,7 @@
     { "id": "pond-west", "type": "pond", "x": -8.3, "z": 7.6, "w": 5, "d": 3.6 },
     { "id": "ginkgo-east", "type": "tree", "x": 7.5, "z": 1, "r": 0.6 },
     { "id": "ginkgo-west", "type": "tree", "x": -7.5, "z": 1, "r": 0.6 },
+    { "id": "lamp-wall", "type": "lamp_wall", "x": -11.3, "z": -15.9, "ry": 1.5708, "rows": 6, "cols": 18 },
     { "id": "altar", "type": "main_altar", "x": 0, "z": -28 },
     { "id": "fortune", "type": "fortune_table", "x": -10, "z": -20, "ry": 1.5708 },
     { "id": "muyu", "type": "muyu", "x": 10, "z": -20, "ry": -1.5708 }

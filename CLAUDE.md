@@ -13,7 +13,7 @@
 
 ```bash
 npm start            # http://localhost:8787 （Node ≥ 20，零 npm 依赖）
-npm test             # 22 项测试，必须全部通过再提交
+npm test             # 28 项测试，必须全部通过再提交
 npm run loadtest     # 压测
 docker compose up -d --build   # 容器方式
 ```
@@ -25,7 +25,7 @@ docker compose up -d --build   # 容器方式
 - `client/` 浏览器端，原生 ES Modules + three.js 0.170（import map 指向 `/vendor/three/`，未自托管时服务器 302 到 jsDelivr），**没有构建步骤**
   - `src/world/` 场景包加载、程序化大殿 `temple.js`（佛像与胁侍 `statue.js`、殿内陈设 `interior.js`、远山松林院墙放生池 `landscape.js`）、天色季节 `env.js`、碰撞 `collide.js`、烟与落花 `fx.js`
   - `src/avatar/nisheng.js` 泥生（形体、五阶段釉色着色器、IK 动作）
-  - `src/rituals.js` 各仪式交互；`src/net.js` 房间客户端（插值）
+  - `src/rituals.js` 各仪式交互（含点灯与祈福卡）；灯墙 `src/world/lampwall.js`；`src/net.js` 房间客户端（插值）
 - `admin/` 平台后台 · `scenes/` 场景包 · `content/` 签诗 · `docs/` 文档 · `test/` · `tools/`
 
 ## 必须遵守的规则（来自设计文档，不要改）

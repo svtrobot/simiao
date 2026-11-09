@@ -5,14 +5,39 @@ import * as audio from './audio.js';
 import { $, toast, hint, bindPanelClose, updateMe, renderMe, setPresence, openPanel } from './ui.js';
 
 const params = new URLSearchParams(location.search);
-const slug = (location.pathname.match(/^\/t\/([a-z0-9-]+)/) || [])[1] || params.get('t') || 'main';
+let slug = (location.pathname.match(/^\/t\/([a-z0-9-]+)/) || [])[1] || params.get('t') || 'main';
+// 4.3 祈福卡: /c/<id> shows the card first, then enters the temple where that lamp hangs.
+const cardId = (location.pathname.match(/^\/c\/([A-Za-z0-9_-]+)/) || [])[1] || null;
+let card = null;
 
 // Heavy 3D modules start downloading right away, while the intro text is on screen.
 const three = Promise.all([import('three'), import('./world/scene.js')]).catch((e) => { console.error(e); return null; });
 
 let config = { locale: 'zh-Hant', ritualsAllowed: true };
-api('GET', '/api/config').then((c) => { config = c; setLocale(c.locale); applyI18n(); }).catch(() => applyI18n());
+const configured = api('GET', '/api/config').then((c) => { config = c; setLocale(c.locale); applyI18n(); }).catch(() => applyI18n());
 bindPanelClose();
+if (cardId) configured.then(showCard); // after applyI18n, which would reset the button text
+
+async function showCard() {
+  try {
+    card = await api('GET', `/api/cards/${cardId}`);
+    slug = card.temple.slug;
+    $('card-title').textContent = t('card.title', localName(card.temple.name));
+    $('card-kind').textContent = t('lamp.for', t(`lamp.kind.${card.kind}`), card.forName);
+    $('card-wish').hidden = !card.wish;
+    $('card-wish').textContent = card.wish ? `「${card.wish}」` : '';
+    $('card-from').textContent = t('card.from', card.fromName);
+    const until = new Date(card.expiresAt).toLocaleDateString(document.documentElement.lang, { month: 'long', day: 'numeric' });
+    $('card-until').textContent = card.lit ? t('card.until', until) : t('card.out');
+    $('card-view').classList.toggle('out', !card.lit);
+    $('card-view').hidden = false;
+    document.querySelector('.intro-line').hidden = true;
+    $('enter').textContent = t('card.enter');
+  } catch {
+    card = null;
+    $('intro-status').textContent = t('card.notFound');
+  }
+}
 
 function webglOK() {
   try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; }
@@ -63,8 +88,9 @@ function start(game, session, info) {
     toast(t('mode.cultural'));
   }
 
-  // 第一个任务永远是“上一炷香”（2.1）
-  const first = info.mode !== 'cultural' && session.user.merit === 0;
+  // 第一个任务永远是“上一炷香”（2.1）——从祈福卡进来的人，先带他去看那盏灯
+  if (card) setTimeout(() => game.rituals.visitLamp(card.lampId), 2800);
+  const first = !card && info.mode !== 'cultural' && session.user.merit === 0;
   if (first) {
     document.querySelector('[data-act="incense"]').classList.add('pulse');
     setTimeout(() => hint(t('hint.first'), 7000), 2600);
@@ -74,7 +100,7 @@ function start(game, session, info) {
 
   const r = game.rituals;
   const handlers = {
-    gassho: r.gassho, bow: r.bow, incense: r.incense, fortune: r.fortune, muyu: r.muyu, beads: r.beads, sit: r.sit, wish: r.wish,
+    gassho: r.gassho, bow: r.bow, incense: r.incense, fortune: r.fortune, muyu: r.muyu, beads: r.beads, sit: r.sit, wish: r.wish, lamp: r.lamp,
   };
   for (const b of document.querySelectorAll('[data-act]')) {
     b.addEventListener('click', () => {
