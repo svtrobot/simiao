@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { HttpError } from './domain/util.js';
+import { almanac, personal, todayIn } from './domain/almanac.js';
 
 export const THREE_VERSION = '0.170.0';
 
@@ -97,7 +98,7 @@ export function createHandler(ctx) {
     return users.publicView(u);
   });
 
-  route('GET', '/api/me', (req) => users.publicView(users.require(token(req))));
+  route('GET', '/api/me', (req) => users.privateView(users.require(token(req))));
 
   route('GET', '/api/temples', () => templesSvc.listPublic().map((t) => ({
     slug: t.slug, name: t.name, type: t.type, label: t.label || null, certified: t.certified, sceneId: t.sceneId,
@@ -145,6 +146,27 @@ export function createHandler(ctx) {
     if (!out.already) ctx.creditMerit(u, 'rejoice');
     return out;
   });
+
+  // ---- 黃曆 / 日籤 / 本命佛（3.3、4.1）----
+  route('GET', '/api/temples/:slug/almanac', (req, p, url) => {
+    const t = temple(p.slug);
+    const mode = ctx.modeOf(t, scenes.get(t.sceneId));
+    const tz = config.regionPolicy.tz;
+    const q = url.searchParams.get('date');
+    const date = q && /^\d{4}-\d{2}-\d{2}$/.test(q) ? q : todayIn(tz);
+    const u = users.byToken(token(req));
+    const alm = almanac(date, { tz, mode });
+    return {
+      ...alm, mode,
+      daily: ctx.daily.pick(config.regionPolicy.locale, date, u?.id),
+      me: u ? { ...personal(alm, u.birthday, { mode }), hasBirthday: !!u.birthday, streak: u.practice.streak } : null,
+    };
+  });
+  route('POST', '/api/me/birthday', async (req) => {
+    const u = users.require(token(req));
+    return { birthday: users.setBirthday(u, await readJson(req)) };
+  });
+  route('DELETE', '/api/me/birthday', (req) => { users.clearBirthday(users.require(token(req))); return { birthday: null }; });
 
   // ---- 點燈 / 燈牆 / 祈福卡 ----
   route('GET', '/api/temples/:slug/lamps', (req, p) => {

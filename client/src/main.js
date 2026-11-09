@@ -3,6 +3,7 @@ import { t, setLocale, applyI18n, localName } from './i18n.js';
 import { api, startSession } from './api.js';
 import * as audio from './audio.js';
 import { $, toast, hint, bindPanelClose, updateMe, renderMe, setPresence, openPanel } from './ui.js';
+import { createAlmanac } from './almanac.js';
 
 const params = new URLSearchParams(location.search);
 let slug = (location.pathname.match(/^\/t\/([a-z0-9-]+)/) || [])[1] || params.get('t') || 'main';
@@ -80,6 +81,8 @@ function start(game, session, info) {
   else if (info.temple.certified && info.temple.type !== 'official') { $('temple-label').hidden = false; $('temple-label').textContent = t('label.certified'); }
   updateMe(session.user);
   setPresence(info.stats);
+  // 每天一個回來的理由（4.1）：黃曆小籤在寺名旁，當天沒看過時帶一個小點
+  createAlmanac({ slug, templeName: localName(info.temple.name) }).load().catch(() => {});
   if (session.returned?.repaired) setTimeout(() => toast(t('returned'), { gold: true }), 2500);
 
   // 文化参访模式：隐藏上香、念诵等宗教仪式（6.5 合规模式）

@@ -52,6 +52,7 @@
   <div class="temple">
     <span id="temple-name" class="temple-name">雲上寺</span>
     <span id="temple-label" class="badge" hidden></span>
+    <button id="alm-chip" class="alm-chip" type="button" hidden aria-label="今日黃曆"><span id="alm-chip-text"></span></button>
   </div>
   <div class="presence">
     <span id="online-line"></span>
@@ -179,6 +180,57 @@
   <h3 class="lamp-mine-title" data-i18n="lamp.mine">我的燈</h3>
   <ul id="lamp-mine" class="lamp-mine"></ul>
   <p class="fineprint" data-i18n="lamp.fineprint">點燈是心意與陪伴，不作任何靈驗承諾。</p>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
+<!-- 黃曆 / 日籤 / 本命佛 -->
+<div id="alm-panel" class="panel modal alm" hidden role="dialog" aria-modal="true" aria-labelledby="alm-title">
+  <h2 id="alm-title" data-i18n="alm.title">今日黃曆</h2>
+  <header class="alm-head">
+    <p id="alm-solar" class="alm-solar"></p>
+    <p id="alm-lunar" class="alm-lunar"></p>
+    <p id="alm-gz" class="fineprint"></p>
+    <p id="alm-term" class="alm-term"></p>
+    <div id="alm-fest" class="alm-fest"></div>
+  </header>
+  <section class="alm-daily">
+    <h3 data-i18n="alm.daily">今日一句</h3>
+    <p id="alm-line" class="alm-line"></p>
+    <p id="alm-hint" class="fineprint"></p>
+    <button id="alm-share" type="button" class="btn-ghost small" data-i18n="alm.saveDaily">存成圖片</button>
+  </section>
+  <section class="alm-yiji">
+    <div class="yi"><b data-i18n="alm.yi">宜</b><span id="alm-yi"></span></div>
+    <div class="ji"><b data-i18n="alm.ji">忌</b><span id="alm-ji"></span></div>
+  </section>
+  <section>
+    <h3 data-i18n="alm.hours">黃道吉時</h3>
+    <ol id="alm-hours" class="alm-hours"></ol>
+    <p class="fineprint" data-i18n="alm.hoursNote">亮起的是吉時，框起的是現在</p>
+  </section>
+  <dl id="alm-facts" class="alm-facts"></dl>
+  <section class="alm-taisui">
+    <p id="alm-taisui"></p>
+    <p id="alm-taisui-list" class="fineprint"></p>
+  </section>
+  <section class="alm-mine">
+    <h3 data-i18n="alm.mine">屬於你的</h3>
+    <div id="alm-me"></div>
+    <form id="alm-form" class="alm-form" hidden>
+      <p class="panel-tip" data-i18n="alm.ask">填上生日，看看你的生肖、本命佛與流年</p>
+      <label class="check"><input type="checkbox" id="alm-is-lunar"> <span data-i18n="alm.lunar">這是農曆生日</span></label>
+      <fieldset class="alm-ymd">
+        <legend data-i18n="alm.birthday">生日</legend>
+        <input id="alm-y" type="number" inputmode="numeric" min="1900" required placeholder="1990" aria-label="年">
+        <select id="alm-m" aria-label="月"></select>
+        <select id="alm-d" aria-label="日"></select>
+      </fieldset>
+      <label class="check" id="alm-leap-row" hidden><input type="checkbox" id="alm-is-leap"> <span data-i18n="alm.leapMonth">閏月</span></label>
+      <button type="submit" class="btn" data-i18n="alm.save">保存</button>
+      <p class="fineprint" data-i18n="alm.privacy">生日只用於你自己的黃曆，不會給任何人看到，可隨時清除。</p>
+    </form>
+  </section>
+  <p class="fineprint" data-i18n="alm.fineprint">黃曆為民俗參考，不作吉凶斷語，也不需要為此花錢。</p>
   <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
 </div>
 

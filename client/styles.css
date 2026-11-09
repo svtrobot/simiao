@@ -190,6 +190,54 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 @keyframes flicker { 0%, 100% { transform: scaleY(1) translateY(0); } 40% { transform: scaleY(1.06) translateY(-1px); } 70% { transform: scaleY(0.97) translateY(1px); } }
 @media (prefers-reduced-motion: reduce) { .card-lamp::before, .card-lamp i { animation: none; } }
 
+/* ---------- 黃曆 ---------- */
+.alm-chip { position: relative; background: var(--glass); border: 1px solid var(--glass-line); border-radius: 999px; padding: 4px 12px; min-height: 32px; font-family: var(--serif); font-size: 13px; letter-spacing: 0.1em; color: var(--paper-dim); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.alm-chip.fresh::after { content: ''; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--vermilion); box-shadow: 0 0 6px rgba(180, 81, 58, 0.8); }
+.alm { text-align: left; }
+.alm h2, .alm > .fineprint, .alm .close { text-align: center; display: block; margin-left: auto; margin-right: auto; }
+.alm h3 { font-family: var(--serif); font-weight: 500; font-size: 14px; letter-spacing: 0.25em; color: var(--paper-dim); margin: 18px 0 8px; }
+.alm-head { text-align: center; }
+.alm-solar { margin: 0; color: var(--paper-dim); font-size: 14px; }
+.alm-lunar { margin: 4px 0; font-family: var(--serif); font-size: 24px; letter-spacing: 0.12em; color: var(--paper); }
+.alm-term { margin: 4px 0; color: var(--gold); font-size: 13px; letter-spacing: 0.1em; }
+.alm-fest { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.alm-badge { border: 1px solid rgba(180, 81, 58, 0.6); color: #e6a08e; border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+.alm-daily { margin-top: 14px; padding: 14px 16px; border-radius: 14px; background: linear-gradient(#2a201a, #1a1411); border: 1px solid rgba(210, 173, 94, 0.35); text-align: center; }
+.alm-daily h3 { margin-top: 0; }
+.alm-line { font-family: var(--serif); font-size: 20px; line-height: 1.8; letter-spacing: 0.08em; margin: 0 0 4px; text-wrap: balance; }
+.alm-yiji { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.alm-yiji > div { border: 1px solid var(--glass-line); border-radius: 12px; padding: 10px 12px; display: flex; gap: 10px; align-items: flex-start; }
+.alm-yiji b { font-family: var(--serif); font-size: 22px; line-height: 1; padding: 6px 8px; border-radius: 8px; flex: none; }
+.alm-yiji .yi b { color: #f6e7c5; background: rgba(95, 138, 90, 0.45); }
+.alm-yiji .ji b { color: #f6e7c5; background: rgba(180, 81, 58, 0.45); }
+.alm-yiji span span { display: inline-block; margin: 2px 8px 2px 0; font-size: 14px; }
+.alm-hours { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.alm-hours li { text-align: center; border-radius: 10px; padding: 6px 0; border: 1px solid transparent; color: var(--muted); background: rgba(239, 231, 218, 0.03); }
+.alm-hours li b { display: block; font-family: var(--serif); font-size: 17px; font-weight: 500; }
+.alm-hours li small { font-size: 10px; }
+.alm-hours li.good { color: #f6e7c5; background: rgba(210, 173, 94, 0.16); }
+.alm-hours li.now { border-color: var(--gold); }
+.alm-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 0; }
+.alm-facts div { border: 1px solid var(--glass-line); border-radius: 10px; padding: 8px; text-align: center; }
+.alm-facts dt { color: var(--muted); font-size: 12px; min-height: 1.2em; }
+.alm-facts dd { margin: 2px 0 0; font-family: var(--serif); font-size: 15px; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(255, 255, 255, 0.3); }
+.alm-taisui { margin-top: 14px; }
+.alm-taisui p { margin: 2px 0; }
+.alm-taisui p:first-child { font-family: var(--serif); letter-spacing: 0.08em; }
+.alm-my { font-family: var(--serif); font-size: 18px; letter-spacing: 0.15em; margin: 4px 0 8px; }
+.alm-bday { color: var(--gold); font-family: var(--serif); }
+.alm-guardian { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(210, 173, 94, 0.45); background: radial-gradient(circle at 15% 30%, rgba(210, 173, 94, 0.18), transparent 60%); margin-bottom: 8px; }
+.alm-guardian small { color: var(--muted); letter-spacing: 0.2em; }
+.alm-guardian b { font-family: var(--serif); font-weight: 500; font-size: 18px; color: #f6e7c5; letter-spacing: 0.12em; }
+.alm-guardian span { color: var(--paper-dim); font-size: 14px; }
+.alm-form { display: flex; flex-direction: column; gap: 8px; }
+.alm-ymd { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 8px; }
+.alm-ymd legend { font-size: 13px; color: var(--paper-dim); margin-bottom: 6px; }
+.alm-ymd input, .alm-ymd select { background: rgba(239, 231, 218, 0.06); color: var(--paper); border: 1px solid var(--glass-line); border-radius: 10px; padding: 10px; font: inherit; min-height: 44px; min-width: 0; }
+.alm-ymd select option { background: #1d1814; }
+@media (max-width: 380px) { .alm-hours { grid-template-columns: repeat(4, 1fr); } .alm-yiji { grid-template-columns: 1fr; } }
+
 @media (max-width: 560px) {
   .presence { display: none; }
   /* All 8 rituals must fit without a hidden scroll: stretch the bar and let buttons share the width. */

@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { newId, HttpError } from './util.js';
 import { dharmaName } from './names.js';
 import { blankPractice, visit, appearance, rankFor } from './practice.js';
+import { solarOf, zodiacOf } from './almanac.js';
 
 const MOODS = new Set(['anxious', 'tired', 'missing', 'seeking', 'browsing']);
 const tokenKey = (t) => crypto.createHash('sha256').update(t).digest('base64url');
@@ -50,6 +51,36 @@ export class UserService {
   }
 
   save(user) { this.store.put('users', user.id, user); }
+
+  /**
+   * Optional birthday (3.3). Lunar input is converted to the Gregorian date. Stored only for
+   * this user's own almanac and never sent to others (publicView goes out to the whole room).
+   */
+  setBirthday(user, { date, lunar = false, leap = false } = {}, now = Date.now()) {
+    const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(String(date || ''));
+    if (!m) throw new HttpError(422, 'invalid_date');
+    const [y, mo, d] = [+m[1], +m[2], +m[3]];
+    const thisYear = new Date(now).getUTCFullYear();
+    if (y < 1900 || y > thisYear || mo < 1 || mo > 12 || d < 1 || d > (lunar ? 30 : 31)) throw new HttpError(422, 'invalid_date');
+    let solar;
+    if (lunar) {
+      solar = solarOf(y, mo, d, leap);
+      if (!solar) throw new HttpError(422, 'invalid_date');
+    } else {
+      const dt = new Date(Date.UTC(y, mo - 1, d));
+      if (dt.getUTCMonth() !== mo - 1) throw new HttpError(422, 'invalid_date');
+      solar = dt.toISOString().slice(0, 10);
+    }
+    if (Date.parse(solar) > now) throw new HttpError(422, 'invalid_date');
+    user.birthday = { date: solar, lunar: !!lunar, zodiac: zodiacOf(solar) };
+    this.save(user);
+    return user.birthday;
+  }
+
+  clearBirthday(user) { delete user.birthday; this.save(user); }
+
+  /** Only for the user themselves (GET /api/me). */
+  privateView(user) { return { ...this.publicView(user), birthday: user.birthday || null }; }
 
   publicView(user) {
     const p = user.practice;
