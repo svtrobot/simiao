@@ -121,7 +121,7 @@ export class Room {
   _act(m, a) {
     if (!ACTIONS.has(a) || a === 'sit') return;
     const ritualPose = { bow: 'bow', prostrate: 'prostrate', incense: 'incense', muyu: 'muyu', bead: 'bead', fortune: 'fortune' };
-    if (ritualPose[a] && !actionAllowed(this.mode, a === 'bead' ? 'bead' : a)) return;
+    if (ritualPose[a] && !actionAllowed(this.mode, a, this.scene)) return;
     m.a = a;
     this.dirty.add(m.id);
   }
@@ -155,7 +155,7 @@ export class Room {
 
   _ritual(m, kind, now) {
     if (!['incense', 'muyu', 'bead', 'bow'].includes(kind)) return;
-    if (!actionAllowed(this.mode, kind)) return this._send(m, { t: 'err', code: 'not_in_this_mode' });
+    if (!actionAllowed(this.mode, kind, this.scene)) return this._send(m, { t: 'err', code: 'not_in_this_mode' });
     if (kind === 'incense') {
       // 每日 3 炷免费清香，服务端为准；超出则不落香也不加功德
       const res = this._merit(m, 'incense', now);

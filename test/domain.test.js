@@ -46,7 +46,8 @@ test('temple applications: venue names need a certificate; approval creates a te
   const { id } = svc.apply({ ...base, orgType: 'culture', name: '晨光冥想空間' });
   const { temple } = svc.decide(id, { approve: true, slug: 'morning-light' });
   assert.equal(temple.label, 'culture');
-  assert.equal(svc.listPublic().length, 2);
-  const cn = new TempleService({ store: new JsonStore(null), scenes, regionPolicy: REGIONS.cn, region: 'cn' });
+  // the platform's own halls (中式 / 日式神社 / 韓式山寺) plus the newly approved tenant
+  assert.deepEqual(svc.listPublic().map((t) => t.slug).sort(), ['jinja', 'main', 'morning-light', 'sansa']);
+  const cn =new TempleService({ store: new JsonStore(null), scenes, regionPolicy: REGIONS.cn, region: 'cn' });
   assert.throws(() => cn.apply({ ...base, orgType: 'culture', name: '晨光' }), /self_service_disabled/);
 });

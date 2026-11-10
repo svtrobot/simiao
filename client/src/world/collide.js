@@ -1,4 +1,5 @@
 // Walkability for the procedural hall layout: ground height, platform edge, blockers.
+import { frameOf } from './layout.js';
 // The server only enforces the walk rectangle and speed; finer collision is client-side.
 export function createCollision(manifest) {
   const h = manifest.hall;
@@ -17,9 +18,13 @@ export function createCollision(manifest) {
   const rects = [];
   const add = (x, z, r) => blockers.push({ x, z, r });
   const slot = Object.fromEntries(manifest.slots.map((s) => [s.id, s]));
+  const frame = frameOf(manifest);
   for (const s of manifest.slots) {
     if (s.type === 'incense_burner') add(s.x, s.z, (s.radius || 1.4) + 0.2);
-    if (s.id.startsWith('lantern')) add(s.x, s.z, 0.6);
+    if (s.type === 'lantern' || (s.type === 'photo_spot' && s.id.startsWith('lantern'))) add(s.x, s.z, 0.6);
+    if (s.type === 'pagoda') add(s.x, s.z, 1.7);
+    if (s.type === 'temizuya') add(s.x, s.z, 1.6);
+    if (s.type === 'guardian') add(s.x, s.z, 0.75);
     if (s.type === 'bell') add(s.x, s.z, 2.0);
     if (s.type === 'fortune_table') add(s.x, s.z, 0.9);
     if (s.type === 'muyu') add(s.x, s.z, 0.6);
@@ -30,7 +35,7 @@ export function createCollision(manifest) {
       add(s.x - 4.6, s.z + 1.5, 0.5); add(s.x + 4.6, s.z + 1.5, 0.5);
     }
     if (s.type === 'wish_wall') { for (const dz of [-1.6, 0, 1.6]) add(s.x, s.z + dz, 0.5); }
-    if (s.type === 'gate') { for (const x of [-4.2, -1.6, 1.6, 4.2]) add(s.x + x, s.z, 0.6); }
+    if (s.type === 'gate') { for (const x of frame.gatePosts) add(s.x + x, s.z, 0.6); }
     if (s.type === 'tree') add(s.x, s.z, (s.r || 0.6) + 0.2);
     if (s.type === 'lamp_wall') {
       // cabinet footprint (cols × 0.3 m wide, ~0.6 m deep), turned by ry; axis-aligned box around it
@@ -41,8 +46,9 @@ export function createCollision(manifest) {
     }
     if (s.type === 'pond') rects.push({ x0: s.x - s.w / 2 - 0.25, x1: s.x + s.w / 2 + 0.25, z0: s.z - s.d / 2 - 0.25, z1: s.z + s.d / 2 + 0.25 });
   }
-  for (const x of [-11.4, -8, -3.9, 3.9, 8, 11.4]) add(x, h.z1 - 0.7, 0.42);
-  for (const x of [-8, 8]) for (const z of [-18.5, -24.5]) add(x, z, 0.42);
+  for (const x of frame.front) add(x, h.z1 - 0.7, 0.42);
+  for (const [x, z] of frame.inner) add(x, z, 0.42);
+  for (const [x, z] of frame.porch) add(x, z, 0.4);
   void slot;
 
   const inHall = (x, z) => x > h.x0 + 0.6 && x < h.x1 - 0.6 && z > h.z0 + 0.8 && z < h.z1;

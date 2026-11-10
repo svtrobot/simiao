@@ -11,9 +11,15 @@ export function effectiveMode({ regionPolicy, scene, temple }) {
   return temple.mode === 'cultural' ? 'cultural' : 'ritual';
 }
 
-export function actionAllowed(mode, action) {
+/**
+ * A scene may also narrow the rituals to those its tradition actually has (manifest.rituals):
+ * a Shinto shrine has no incense, 木魚 or prayer beads; a Korean mountain temple no 求籤.
+ */
+export function actionAllowed(mode, action, scene = null) {
   if (CULTURAL_ACTIONS.has(action)) return true;
-  return mode === 'ritual' && RITUAL_ACTIONS.has(action);
+  if (mode !== 'ritual' || !RITUAL_ACTIONS.has(action)) return false;
+  if (Array.isArray(scene?.rituals) && !scene.rituals.includes(action === 'prostrate' ? 'bow' : action)) return false;
+  return true;
 }
 
 // Names that claim to be a religious venue need a registration certificate (5.4).

@@ -75,7 +75,8 @@ export function createHandler(ctx) {
   const ritualOk = (t, action) => {
     const scene = scenes.get(t.sceneId);
     const mode = ctx.modeOf(t, scene);
-    if (!ctx.actionAllowed(mode, action)) throw new HttpError(403, 'not_in_this_mode');
+    if (!ctx.actionAllowed(mode, action, scene)) throw new HttpError(403, 'not_in_this_mode');
+    return scene;
   };
 
   route('GET', '/api/health', () => ({ ok: true, region: config.region, online: lobby.totalOnline(), uptime: Math.round(process.uptime()) }));
@@ -114,7 +115,7 @@ export function createHandler(ctx) {
   route('GET', '/api/me', (req) => users.privateView(users.require(token(req))));
 
   route('GET', '/api/temples', () => templesSvc.listPublic().map((t) => ({
-    slug: t.slug, name: t.name, type: t.type, label: t.label || null, certified: t.certified, sceneId: t.sceneId,
+    slug: t.slug, name: t.name, type: t.type, label: t.label || null, certified: t.certified, sceneId: t.sceneId, culture: scenes.get(t.sceneId)?.culture || null,
     online: lobby.templeStats(t.id).online,
   })));
 
@@ -131,6 +132,12 @@ export function createHandler(ctx) {
 
   route('GET', '/api/scenes', () => scenes.forRegion(config.region).map((s) => scenes.summary(s)));
 
+  // 御神籤: traditions without 擲筊 (manifest.fortune.jiao === false) reveal the drawn lot directly
+  route('POST', '/api/temples/:slug/fortune/reveal', (req, p) => {
+    const t = temple(p.slug); const scene = ritualOk(t, 'fortune');
+    if (scene.fortune?.jiao !== false) throw new HttpError(409, 'jiao_required');
+    return fortune.reveal(users.require(token(req)).id, t.id);
+  });
   route('POST', '/api/temples/:slug/fortune/draw', (req, p) => {
     const t = temple(p.slug); ritualOk(t, 'fortune');
     return fortune.draw(users.require(token(req)).id, t.id);

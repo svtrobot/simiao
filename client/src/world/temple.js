@@ -1,4 +1,6 @@
-// Procedural builder for scene packages with render.builder = "procedural:cn-hall-v1".
+// Procedural builder for scene packages with render.builder = "procedural:cn-hall-v1" / "procedural:hall-v2".
+// hall-v2 reads manifest.style.architecture (cn-hall | kr-temple | jp-shrine): the vocabulary of
+// columns, roofs, gates and lanterns comes from styles.js; positions still come from the manifest.
 // Everything is placed from the manifest (hall rect, slots, seat grid), so another
 // layout of the same style is just another manifest. glTF / Gaussian-splat packages
 // go through loadPackage() in scene.js instead.
@@ -9,6 +11,8 @@ import { addShrine, STATUE_MATERIALS } from './statue.js';
 import { addInterior, interiorMaterials } from './interior.js';
 import { addLandscape, landscapeMaterials } from './landscape.js';
 import { addLampWall } from './lampwall.js';
+import { STYLES, SCENERY } from './styles.js';
+import { frameOf } from './layout.js';
 
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 const tmpQ = new THREE.Quaternion();
@@ -94,7 +98,10 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
   const hall = manifest.hall;
   const floorY = hall.floorY;
   const slot = Object.fromEntries(manifest.slots.map((s) => [s.id, s]));
+  const byType = (type) => manifest.slots.find((s) => s.type === type);
   const rnd = seeded(20261109);
+  const frame = frameOf(manifest);
+  const S = STYLES[frame.arch] || null; // null = the original Chinese hall below
 
   const stoneTex = TX.stoneTiles({ base: pal.stone }); stoneTex.repeat.set(6, 6);
   const gravelTex = TX.gravel(); gravelTex.repeat.set(10, 10);
@@ -128,6 +135,7 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
     ...STATUE_MATERIALS(),
     ...interiorMaterials(),
     ...landscapeMaterials(season),
+    ...(S ? S.materials(pal, season) : {}),
   };
 
   const B = new Batch();
@@ -156,14 +164,21 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
   }
 
   // ---- columns, beams, brackets ----
-  const colH = 5.8, colTop = floorY + colH;
+  const colH = frame.colH, colTop = floorY + colH;
   const frontZ = hall.z1 - 0.7;
-  const colXs = [-11.4, -8, -3.9, 3.9, 8, 11.4];
+  const inHallAt = (x, z) => x > hall.x0 && x < hall.x1 && z > hall.z0 && z < hall.z1;
+  const ctx = {
+    B, M, mat, hall, floorY, colTop, frontZ, hw, hd, hcx, hcz, frame, rnd, season, quality,
+    box, cyl, cyl8, sph, cone, lathe, hipRoof, yAt: (x, z) => (inHallAt(x, z) ? floorY : 0),
+  };
+  if (S) S.frame(ctx);
+  else {
+  const colXs = frame.front;
   for (const x of colXs) {
     B.add('stoneDark', cyl8, M(x, floorY + 0.12, frontZ, 0, 0, 0, 0.5, 0.24, 0.5));
     B.add('lacquer', cyl, M(x, floorY + colH / 2, frontZ, 0, 0, 0, 0.3, colH, 0.3));
   }
-  for (const x of [-8, 8]) for (const z of [-18.5, -24.5]) {
+  for (const [x, z] of frame.inner) {
     B.add('stoneDark', cyl8, M(x, floorY + 0.12, z, 0, 0, 0, 0.5, 0.24, 0.5));
     B.add('lacquer', cyl, M(x, floorY + colH / 2, z, 0, 0, 0, 0.3, colH, 0.3));
   }
@@ -187,8 +202,11 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
     for (let k = 0; k <= 8; k++) B.add('lattice', box, M(cx - bw / 2 + k * bw / 8, floorY + 3.1, frontZ, 0, 0, 0, 0.07, 4.2, 0.1));
     for (let k = 0; k <= 10; k++) B.add('lattice', box, M(cx, floorY + 1.0 + k * 0.42, frontZ, 0, 0, 0, bw, 0.06, 0.1));
   }
+  }
 
   // ---- roof ----
+  if (S) S.roof(ctx);
+  else {
   const roofG = hipRoof({ halfW: hw / 2 + 2.2, halfD: hd / 2 + 2.4, ridgeHalf: hw / 2 - 4.5, ridgeY: colTop + 3.6, eaveY: colTop + 0.85, lift: 1.1, flare: 0.8 });
   B.add('roof', roofG, M(hcx, 0, hcz));
   const ridgeLen = (hw / 2 - 4.5) * 2;
@@ -199,10 +217,12 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
     B.add('ridge', tor, M(hcx + sx * (ridgeLen / 2 + 0.2), colTop + 4.55, hcz, 0, 0, sx > 0 ? -0.4 : Math.PI + 0.4));
     B.add('gold', sph, M(hcx + sx * (ridgeLen / 2 + 0.25), colTop + 4.15, hcz, 0, 0, 0, 0.16));
   }
+  }
   // ---- altar & seated figure (自建模，庄重、无戏谑) ----
-  const altar = slot.altar;
+  const altar = byType('main_altar');
   const shrineExtras = [];
-  if (altar) {
+  if (altar && S && !S.buddhist) shrineExtras.push(...S.altar(ctx, altar));
+  else if (altar) {
     const ax = altar.x, az = altar.z;
     // deep enough that the lotus plinth (r ≈ 1.6) does not overhang the front edge
     B.add('lacquer', box, M(ax, floorY + 0.6, az + 0.05, 0, 0, 0, 8, 1.2, 3.3));
@@ -212,12 +232,17 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
   }
   // ceiling, 藻井, offering table, cushions, banners, lanterns, couplets, murals (interior.js)
   const lampSlot = manifest.slots.find((s) => s.type === 'lamp_wall');
-  const inside = addInterior(B, M, { hall, floorY, colTop, frontZ, altar, skipMuralSide: lampSlot ? Math.sign(lampSlot.x) : 0 });
+  const inside = S && !S.buddhist ? S.interior(ctx) : addInterior(B, M, { hall, floorY, colTop, frontZ, altar, skipMuralSide: lampSlot ? Math.sign(lampSlot.x) : 0 });
   // 燈牆 (lampwall.js)
   const lampWall = lampSlot ? addLampWall(B, M, { slot: lampSlot, floorY: lampSlot.z < hall.z1 && lampSlot.z > hall.z0 ? floorY : 0, mode }) : null;
 
   // ---- courtyard furniture ----
-  const lanternPos = manifest.slots.filter((s) => s.id.startsWith('lantern'));
+  const lanternPos = manifest.slots.filter((s) => s.type === 'photo_spot' && s.id.startsWith('lantern'));
+  const lanternGlows = lanternPos.map((l) => ({ x: l.x, y: 1.95, z: l.z, size: 0.34 }));
+  for (const l of manifest.slots.filter((s) => s.type === 'lantern')) {
+    if (S) lanternGlows.push(S.lantern(ctx, l));
+    else lanternPos.push(l);
+  }
   for (const l of lanternPos) {
     B.add('stone', cyl8, M(l.x, 0.15, l.z, 0, 0, 0, 0.55, 0.3, 0.55));
     B.add('stone', cyl8, M(l.x, 0.9, l.z, 0, 0, 0, 0.16, 1.3, 0.16));
@@ -227,7 +252,7 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
   }
 
   // 香炉（鼎）
-  const bz = slot['burner-main'];
+  const bz = byType('incense_burner');
   if (bz) {
     B.add('stone', cyl8, M(bz.x, 0.2, bz.z, 0, Math.PI / 8, 0, 1.5, 0.4, 1.5));
     const bowl = lathe([[0, 0], [0.55, 0.02], [0.85, 0.25], [0.95, 0.55], [0.9, 0.82], [0.98, 0.88], [0.96, 0.95], [0.84, 0.92], [0.84, 0.82], [0, 0.8]], 28);
@@ -241,8 +266,9 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
   }
 
   // 钟亭
-  const bell = slot.bell;
-  if (bell) {
+  const bell = byType('bell');
+  if (bell && S?.bell) S.bell(ctx, bell);
+  else if (bell) {
     for (const [dx, dz] of [[-1.3, -1.3], [1.3, -1.3], [-1.3, 1.3], [1.3, 1.3]]) B.add('lacquer', cyl, M(bell.x + dx, 1.8, bell.z + dz, 0, 0, 0, 0.14, 3.6, 0.14));
     B.add('stone', box, M(bell.x, 0.12, bell.z, 0, 0, 0, 3.6, 0.24, 3.6));
     B.add('roof', hipRoof({ halfW: 2.5, halfD: 2.5, ridgeHalf: 0.05, ridgeY: 5.2, eaveY: 3.7, lift: 0.4, flare: 0.3, nu: 10, nv: 6 }), M(bell.x, 0, bell.z));
@@ -252,7 +278,7 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
   }
 
   // 祈愿牌架
-  const ww = slot['wish-wall'];
+  const ww = byType('wish_wall');
   const tabletSlots = [];
   if (ww) {
     const rot = ww.ry || 0;
@@ -267,14 +293,15 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
   }
 
   // 签桌 / 木鱼
-  const ft = slot.fortune;
-  if (ft) {
+  const ft = byType('fortune_table');
+  if (ft && S?.fortune) S.fortune(ctx, ft);
+  else if (ft) {
     B.add('lacquer', box, M(ft.x, floorY + 0.45, ft.z, 0, ft.ry || 0, 0, 0.9, 0.9, 1.6));
     B.add('cloth', cyl, M(ft.x, floorY + 1.15, ft.z, 0, 0, 0, 0.13, 0.5, 0.13));
     for (let i = 0; i < 9; i++) B.add('wood', cyl8, M(ft.x + (rnd() - 0.5) * 0.12, floorY + 1.55, ft.z + (rnd() - 0.5) * 0.12, (rnd() - 0.5) * 0.15, 0, (rnd() - 0.5) * 0.15, 0.012, 0.45, 0.012));
     for (const dz of [-0.45, 0.45]) B.add('cloth', sph, M(ft.x, floorY + 0.95, ft.z + dz, 0, 0, 0, 0.12, 0.05, 0.07));
   }
-  const my = slot.muyu;
+  const my = byType('muyu');
   if (my) {
     B.add('lacquer', box, M(my.x, floorY + 0.3, my.z, 0, 0, 0, 0.9, 0.6, 0.9));
     B.add('cloth', cyl, M(my.x, floorY + 0.65, my.z, 0, 0, 0, 0.36, 0.1, 0.36));
@@ -283,8 +310,9 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
   }
 
   // 山门牌坊
-  const gate = slot.gate;
-  if (gate) {
+  const gate = byType('gate');
+  const gateInfo = gate && S ? S.gate(ctx, gate) : null;
+  if (gate && !S) {
     const gx = gate.x, gz = gate.z;
     for (const x of [-4.2, -1.6, 1.6, 4.2]) {
       B.add('stone', box, M(gx + x, 0.3, gz, 0, 0, 0, 0.9, 0.6, 0.9));
@@ -296,19 +324,40 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
     for (const sx of [-1, 1]) B.add('roof', hipRoof({ halfW: 1.6, halfD: 0.8, ridgeHalf: 0.9, ridgeY: 5.5, eaveY: 4.75, lift: 0.3, flare: 0.2, nu: 10, nv: 4 }), M(gx + sx * 4.0, -0.3, gz));
   }
 
+  // ---- scenery by slot type: 石塔, 手水舎, 狛犬, 蓮燈, 御神木の注連縄 (styles.js) ----
+  const sceneryExtras = [], sceneryUpdates = [];
+  for (const s of manifest.slots) {
+    if (s.type === 'pagoda') SCENERY.pagoda(ctx, s);
+    else if (s.type === 'temizuya') SCENERY.temizuya(ctx, s);
+    else if (s.type === 'guardian') SCENERY.guardian(ctx, s);
+    else if (s.type === 'tree' && s.rope) SCENERY.treeRope(ctx, s);
+    else if (s.type === 'lantern_line') { const r = SCENERY.lanternLine(ctx, s); sceneryExtras.push(...r.extras); sceneryUpdates.push(r.update); }
+  }
+  const styleLights = S ? S.lights(ctx) : null;
+
   // ---- mountains, forest, courtyard walls, landmark trees, ponds (landscape.js) ----
   const land = addLandscape(B, M, { manifest, hall, season, quality });
 
   const group = B.build(mat);
   for (const m of land.extras) group.add(m);
   if (lampWall) for (const m of lampWall.extras) group.add(m);
+  for (const m of sceneryExtras) group.add(m);
+  if (styleLights) for (const m of styleLights.extras) group.add(m);
 
   // ---- dynamic / special objects ----
   // 匾额
-  const plq = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.3), new THREE.MeshStandardMaterial({ map: TX.plaque(plaqueText || '雲上寺'), roughness: 0.5, metalness: 0.1 }));
-  plq.position.set(0, colTop + 0.45, frontZ + 0.42);
+  const plaqueMat = new THREE.MeshStandardMaterial({ map: TX.plaque(plaqueText || '雲上寺'), roughness: 0.5, metalness: 0.1 });
+  const hp = S ? S.plaques(ctx).hall : { x: 0, y: colTop + 0.45, z: frontZ + 0.42, w: 4.2, h: 1.3 };
+  const plq = new THREE.Mesh(new THREE.PlaneGeometry(hp.w, hp.h), plaqueMat);
+  plq.position.set(hp.x, hp.y, hp.z);
   group.add(plq);
-  if (gate) {
+  if (gateInfo?.plaque) {
+    const g = gateInfo.plaque;
+    const m = g.vertical ? new THREE.MeshStandardMaterial({ map: TX.plaque(plaqueText || '雲上寺', { vertical: true }), roughness: 0.5, metalness: 0.1 }) : plaqueMat;
+    const gp = new THREE.Mesh(new THREE.PlaneGeometry(g.w, g.h), m);
+    gp.position.set(g.x, g.y, g.z);
+    group.add(gp);
+  } else if (gate) {
     const gp = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.75), plq.material);
     gp.position.set(gate.x, 4.2, gate.z + 0.21);
     group.add(gp);
@@ -322,15 +371,17 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
   const seats = manifest.seats || [];
   // 蒲團: puffed round straw cushion with coiled rings (one instanced draw call)
   const puff = [[0, 0], [0.3, 0], [0.37, 0.02], [0.4, 0.06], [0.39, 0.11], [0.34, 0.15], [0.2, 0.17], [0, 0.17]];
-  const cushionGeo = lathe(puff, 16);
+  // 座布団 / 방석: square cushions for the Japanese and Korean halls
+  const square = S?.cushion?.shape === 'square';
+  const cushionGeo = square ? new THREE.BoxGeometry(0.7, 0.1, 0.7, 2, 1, 2).translate(0, 0.05, 0) : lathe(puff, 16);
   const cushionTex = TX.cushionWeave();
-  const cushion = new THREE.InstancedMesh(cushionGeo, new THREE.MeshStandardMaterial({ map: cushionTex, color: '#c8a46a', roughness: 0.95 }), seats.length);
+  const cushion = new THREE.InstancedMesh(cushionGeo, new THREE.MeshStandardMaterial(square ? { color: S.cushion.color, roughness: 0.95 } : { map: cushionTex, color: '#c8a46a', roughness: 0.95 }), seats.length);
   seats.forEach((s, i) => cushion.setMatrixAt(i, M(s.x, floorY, s.z)));
   cushion.receiveShadow = true; cushion.castShadow = quality === 'high';
   group.add(cushion);
 
   // wish tablets (instanced, count grows with the wall)
-  const tablets = new THREE.InstancedMesh(new THREE.BoxGeometry(0.2, 0.3, 0.025), mat.tablet, Math.max(1, tabletSlots.length));
+  const tablets = new THREE.InstancedMesh(S?.tabletGeo ? S.tabletGeo() : new THREE.BoxGeometry(0.2, 0.3, 0.025), S?.tabletGeo ? mat.hinoki : mat.tablet, Math.max(1, tabletSlots.length));
   tablets.count = 0;
   group.add(tablets);
   const setTablets = (n) => {
@@ -341,12 +392,12 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
 
   // warm lights: candles + lanterns (only a few real lights; the rest is emissive)
   const lanternGlow = new THREE.MeshStandardMaterial({ color: '#2a2018', emissive: '#ffb45e', emissiveIntensity: 0.2 });
-  for (const l of lanternPos) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.34), lanternGlow);
-    m.position.set(l.x, 1.95, l.z); group.add(m);
+  for (const l of lanternGlows) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(l.size, l.size, l.size), lanternGlow);
+    m.position.set(l.x, l.y, l.z); group.add(m);
   }
   const redLantern = new THREE.MeshStandardMaterial({ color: '#8e1f14', emissive: '#ff5a2a', emissiveIntensity: 0.25, roughness: 0.6 });
-  for (const sx of [-1, 1]) {
+  for (const sx of S ? [] : [-1, 1]) {
     const m = new THREE.Mesh(new THREE.SphereGeometry(0.45, 18, 12), redLantern);
     m.scale.set(1, 1.15, 1);
     m.position.set(sx * 5.9, colTop - 1.4, frontZ + 0.6); group.add(m);
@@ -391,11 +442,13 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
     sticks.instanceMatrix.needsUpdate = tips.instanceMatrix.needsUpdate = true;
   }
 
+  // stand `dist` in front of a slot (its front faces ry), turned to look at it
+  const facing = (s, dist) => { const ry = s.ry ?? 0; return { x: s.x + Math.sin(ry) * dist, z: s.z + Math.cos(ry) * dist, ry: ry + Math.PI }; };
   const anchors = {
     burner: bz && { x: bz.x, z: bz.z + 2.3, ry: Math.PI },
-    fortune: ft && { x: ft.x + 1.35, z: ft.z, ry: -Math.PI / 2 },
-    muyu: my && { x: my.x - 1.0, z: my.z, ry: Math.PI / 2 },
-    wish: ww && { x: ww.x + 1.6, z: ww.z, ry: -Math.PI / 2 },
+    fortune: ft && facing(ft, 1.35),
+    muyu: my && facing(my, 1.0),
+    wish: ww && facing(ww, 1.6),
     bell: bell && { x: bell.x - 2.0, z: bell.z, ry: Math.PI / 2 },
     altar: altar && { x: altar.x, z: altar.z + 4.2, ry: Math.PI },
     lamp: lampWall?.anchor,
@@ -411,6 +464,8 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
     for (const c of candles) c.scale.set(1, 2.2 + Math.sin(t * 11 + c.position.x * 7) * 0.3, 1);
     inside.lanternMat.emissiveIntensity = night ? 0.85 : 0.3; // higher washes the red silk out to cream
     land.update(t);
+    styleLights?.update(t, night);
+    for (const u of sceneryUpdates) u(t, night);
     lampWall?.update(t, night);
     updateSticks();
   }

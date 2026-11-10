@@ -8,9 +8,13 @@ export const HARD_BUDGET = { triangles: 300000, drawCalls: 150, textureMB: 25, f
 export const SLOT_TYPES = new Set([
   'incense_burner', 'fortune_table', 'muyu', 'bell', 'wish_wall', 'lamp_wall', 'seat', 'photo_spot',
   'paper_brazier', 'ancestor_hall', 'main_altar', 'gate',
-  // scenery that also blocks walking: landmark tree (r), pond (w × d)
-  'tree', 'pond',
+  // scenery that also blocks walking: landmark tree (r), pond (w × d), stone pagoda, 手水舍, guardian statue, stone lantern
+  'tree', 'pond', 'pagoda', 'temizuya', 'guardian', 'lantern',
+  // decoration only: a string of lanterns from (x, z) to (x2, z2) overhead
+  'lantern_line',
 ]);
+export const ARCHITECTURES = new Set(['cn-hall', 'kr-temple', 'jp-shrine']);
+const RITUALS = new Set(['incense', 'fortune', 'muyu', 'bead', 'bow']);
 const REGION_IDS = new Set(['tw', 'overseas', 'cn']);
 const MODES = new Set(['ritual', 'cultural']);
 
@@ -44,6 +48,9 @@ export function validateManifest(m) {
     need(SLOT_TYPES.has(s.type), `slot ${s.id}: unknown type ${s.type}`);
     need(typeof s.x === 'number' && typeof s.z === 'number', `slot ${s.id}: x,z required`);
   }
+  if (m.style !== undefined) need(m.style && ARCHITECTURES.has(m.style.architecture), `style.architecture ∈ {${[...ARCHITECTURES].join(', ')}}`);
+  if (m.rituals !== undefined) need(Array.isArray(m.rituals) && m.rituals.every((r) => RITUALS.has(r)), 'rituals ⊂ {incense, fortune, muyu, bead, bow}');
+  if (m.fortune !== undefined) need(m.fortune && typeof m.fortune.jiao === 'boolean', 'fortune.jiao must be true or false');
   if (m.license?.status === 'licensed') need(!!m.license.expires, 'licensed scenes need license.expires');
   return errors;
 }

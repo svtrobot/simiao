@@ -137,6 +137,15 @@ const T = {
     'acc.tooMany': '試太多次了，請十分鐘後再試。', 'acc.welcomeBack': (n) => `歡迎回來，${n}。`,
     'acc.nudgeMerit': '你已經累積了一些功德。要保存下來嗎？換手機也找得回來。', 'acc.nudgeTablet': '家人的靈位安放好了。保存一下，換手機也找得回來。',
     'acc.nudgeYes': '保存', 'acc.later': '以後再說',
+    // tradition-specific wording (key@culture, see setCulture)
+    'act.bow@jp-shinto': '參拜', 'act.fortune@jp-shinto': '御神籤', 'act.wish@jp-shinto': '繪馬', 'act.lamp@jp-shinto': '獻燈',
+    'hint.first@jp-shinto': '先到拜殿前參拜：二禮、二拍手、一禮', 'bow.etiquette@jp-shinto': '二禮・二拍手・一禮',
+    'fortune.title@jp-shinto': '御神籤', 'fortune.shake@jp-shinto': '搖籤筒', 'fortune.shaking@jp-shinto': '心裡默念想問的事，搖一搖籤筒…',
+    'fortune.drawnPlain': (n) => `第 ${n} 號籤。`, 'fortune.reveal': '打開籤紙',
+    'wish.title@jp-shinto': '繪馬', 'wish.hang@jp-shinto': '掛上繪馬', 'wish.done@jp-shinto': '繪馬已掛上',
+    'act.muyu@kr-buddhist': '木鐸', 'hint.first@kr-buddhist': '先去香爐前，上一炷香吧',
+    'temples.title': '前往其他寺社', 'temples.here': '目前所在', 'temples.online': (n) => `${n} 人在`, 'temples.go': '前往',
+    'culture.zh-buddhist': '中式佛寺', 'culture.kr-buddhist': '韓式山寺', 'culture.jp-shinto': '日式神社',
     'ui.close': '關閉', 'label.certified': '認證寺院', 'label.culture_space': '文化空間', 'label.culture': '文化空間', 'label.memorial': '紀念館', 'label.tourism': '文旅', 'label.family': '家族祠堂',
   },
 };
@@ -252,13 +261,28 @@ T['zh-Hans'] = {
   'acc.tooMany': '试太多次了，请十分钟后再试。', 'acc.welcomeBack': (n) => `欢迎回来，${n}。`,
   'acc.nudgeMerit': '你已经积累了一些功德。要保存下来吗？换手机也找得回来。', 'acc.nudgeTablet': '家人的灵位安放好了。保存一下，换手机也找得回来。',
   'acc.nudgeYes': '保存', 'acc.later': '以后再说',
+  'act.bow@jp-shinto': '参拜', 'act.fortune@jp-shinto': '御神签', 'act.wish@jp-shinto': '绘马', 'act.lamp@jp-shinto': '献灯',
+  'hint.first@jp-shinto': '先到拜殿前参拜：二礼、二拍手、一礼', 'bow.etiquette@jp-shinto': '二礼・二拍手・一礼',
+  'fortune.title@jp-shinto': '御神签', 'fortune.shake@jp-shinto': '摇签筒', 'fortune.shaking@jp-shinto': '心里默念想问的事，摇一摇签筒…',
+  'fortune.drawnPlain': (n) => `第 ${n} 号签。`, 'fortune.reveal': '打开签纸',
+  'wish.title@jp-shinto': '绘马', 'wish.hang@jp-shinto': '挂上绘马', 'wish.done@jp-shinto': '绘马已挂上',
+  'act.muyu@kr-buddhist': '木铎',
+  'temples.title': '前往其他寺社', 'temples.here': '目前所在', 'temples.online': (n) => `${n} 人在`, 'temples.go': '前往',
+  'culture.zh-buddhist': '中式佛寺', 'culture.kr-buddhist': '韩式山寺', 'culture.jp-shinto': '日式神社',
 };
 
 let locale = 'zh-Hant';
 export function setLocale(l) { if (T[l]) { locale = l; document.documentElement.lang = l; } }
 export function getLocale() { return locale; }
+/**
+ * A scene's tradition can rename things: 'act.bow@jp-shinto' → 參拜, 'act.wish@jp-shinto' → 繪馬.
+ * Lookup order: culture-specific in this locale, plain key in this locale, then Traditional.
+ */
+let culture = '';
+export function setCulture(c) { culture = c || ''; }
 export function t(key, ...args) {
-  const v = T[locale][key] ?? T['zh-Hant'][key] ?? key;
+  const ck = culture && `${key}@${culture}`;
+  const v = (ck && (T[locale][ck] ?? T['zh-Hant'][ck])) ?? T[locale][key] ?? T['zh-Hant'][key] ?? key;
   return typeof v === 'function' ? v(...args) : v;
 }
 export function applyI18n(root = document) {

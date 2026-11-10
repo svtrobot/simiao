@@ -51,6 +51,16 @@ export class FortuneService {
     return { result, attempts: s.attempts, lot, final: !!lot, gentle: lot && result !== 'sheng' };
   }
 
+  /** Traditions without 擲筊 (神社の御神籤): the drawn lot is the answer. */
+  reveal(userId, templeId, now = Date.now()) {
+    const { key, s } = this._state(userId, templeId, now);
+    if (s.revealed) throw new HttpError(429, 'fortune_daily_limit', { lot: this.byNo.get(s.revealed) });
+    if (!s.pending) throw new HttpError(409, 'fortune_draw_first');
+    s.revealed = s.pending; s.pending = null;
+    this.store.put('fortune_state', key, s);
+    return { lot: this.byNo.get(s.revealed), final: true };
+  }
+
   today(userId, templeId, now = Date.now()) {
     const { s } = this._state(userId, templeId, now);
     return s.revealed ? this.byNo.get(s.revealed) : null;

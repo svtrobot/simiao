@@ -28,9 +28,24 @@ export function createRituals(game) {
     await wait(900); idle();
   }
   async function bow() {
+    if (game.scene?.etiquette?.bow === '2-2-1') return shrineBow();
     act('bow'); await wait(500); audio.clay(0.35);
     net.send({ t: 'rit', k: 'bow' });
     await wait(1600); idle();
+  }
+  /** 神社: 二禮、二拍手、一禮 */
+  async function shrineBow() {
+    if (busy) return; busy = true;
+    try {
+      hint(t('bow.etiquette'));
+      for (let i = 0; i < 2; i++) { act('bow'); await wait(900); idle(); await wait(500); }
+      act('pray'); await wait(500);
+      for (let i = 0; i < 2; i++) { audio.clay(0.55, 1.5); self().pulse(0.6); await wait(450); }
+      await wait(600);
+      act('bow'); await wait(400); audio.clay(0.3);
+      net.send({ t: 'rit', k: 'bow' });
+      await wait(900); idle();
+    } finally { hint(''); busy = false; }
   }
 
   // ---------- 上香 ----------
@@ -86,6 +101,7 @@ export function createRituals(game) {
       controls.locked = true;
       $('lot').hidden = true; $('jiao').hidden = true; $('tube').hidden = false;
       $('fortune-jiao').hidden = true; $('fortune-shake').hidden = false; $('fortune-shake').disabled = false;
+      $('fortune-jiao').textContent = t(noJiao() ? 'fortune.reveal' : 'fortune.jiao');
       $('fortune-msg').textContent = t('fortune.shaking');
       const done = new Promise((resolve) => openPanel('fortune-panel', resolve));
       try {
@@ -108,7 +124,7 @@ export function createRituals(game) {
       const out = await api('POST', `/api/temples/${slug}/fortune/draw`);
       tube.classList.remove('shaking'); tube.classList.add('drop'); audio.clay(0.3, 0.8);
       await wait(900);
-      $('fortune-msg').textContent = t('fortune.drawn', out.no);
+      $('fortune-msg').textContent = t(noJiao() ? 'fortune.drawnPlain' : 'fortune.drawn', out.no);
       $('fortune-shake').hidden = true; $('fortune-jiao').hidden = false;
     } catch (e) {
       tube.classList.remove('shaking');
@@ -117,7 +133,21 @@ export function createRituals(game) {
     } finally { shaking = false; $('fortune-shake').disabled = false; self().setAction('idle'); }
   }
 
+  // 神社の御神籤 has no 擲筊: the drawn slip is simply opened (manifest.fortune.jiao === false)
+  const noJiao = () => game.scene?.fortune?.jiao === false;
+  async function reveal() {
+    $('fortune-jiao').disabled = true;
+    try {
+      const out = await api('POST', `/api/temples/${slug}/fortune/reveal`);
+      audio.clay(0.25, 1.4); self().setAction('pray');
+      $('fortune-msg').textContent = '';
+      $('fortune-jiao').hidden = true; $('tube').hidden = true;
+      showLot(out.lot);
+    } catch { toast(t('err.generic')); } finally { $('fortune-jiao').disabled = false; }
+  }
+
   async function throwJiao() {
+    if (noJiao()) return reveal();
     $('fortune-jiao').disabled = true;
     const j = $('jiao'); $('tube').hidden = true; j.hidden = false; j.className = 'jiao toss';
     try {

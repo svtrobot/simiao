@@ -51,7 +51,7 @@
 
 <header id="topbar" class="hud topbar" hidden>
   <div class="temple">
-    <span id="temple-name" class="temple-name">雲上寺</span>
+    <button id="temple-name" class="temple-name" type="button" aria-haspopup="dialog">雲上寺</button>
     <span id="temple-label" class="badge" hidden></span>
     <button id="alm-chip" class="alm-chip" type="button" hidden aria-label="今日黃曆"><span id="alm-chip-text"></span></button>
   </div>
@@ -465,6 +465,13 @@
       <button id="acc-signout" type="button" class="btn-ghost small" hidden data-i18n="acc.signout">在這台裝置登出</button>
     </div>
   </section>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
+<!-- 前往其他寺社 -->
+<div id="temples-panel" class="panel modal" hidden role="dialog" aria-modal="true" aria-labelledby="temples-title">
+  <h2 id="temples-title" data-i18n="temples.title">前往其他寺社</h2>
+  <ul id="temples-list" class="temples-list"></ul>
   <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
 </div>
 

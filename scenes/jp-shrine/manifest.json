@@ -1,0 +1,42 @@
+{
+  "id": "jp-shrine",
+  "version": 1,
+  "name": { "zh-Hant": "雲上神社 · 拜殿", "zh-Hans": "云上神社 · 拜殿", "ja": "雲上神社 · 拝殿", "en": "Cloud Shrine · Haiden" },
+  "culture": "jp-shinto",
+  "regions": ["tw", "overseas"],
+  "complianceModes": ["ritual", "cultural"],
+  "geo": null,
+  "license": { "status": "original", "expires": null, "partner": null },
+  "render": { "builder": "procedural:hall-v2", "gltf": null, "splat": null, "lods": [] },
+  "style": { "architecture": "jp-shrine" },
+  "rituals": ["bow", "fortune"],
+  "fortune": { "jiao": false },
+  "etiquette": { "bow": "2-2-1" },
+  "budget": { "triangles": 170000, "drawCalls": 100, "textureMB": 18, "firstScreenMB": 0.8 },
+  "environment": {
+    "sky": "local-time",
+    "seasons": true,
+    "fog": { "color": "#c6cbc4", "near": 16, "far": 90 },
+    "ambience": "mountain-wind",
+    "palette": { "wood": "#c8432b", "roof": "#5f8a79", "stone": "#a39f97", "gold": "#c9a24a" }
+  },
+  "hall": { "x0": -12, "x1": 12, "z0": -30, "z1": -12, "floorY": 1.0, "steps": { "x": 0, "width": 5 } },
+  "walkArea": { "minX": -13, "maxX": 13, "minZ": -27.5, "maxZ": 14 },
+  "spawn": { "x": 0, "z": 12, "ry": 3.14159 },
+  "seatGrid": { "x0": -6.75, "z0": -24.2, "dx": 1.5, "dz": 1.12, "cols": 10, "rows": 10, "ry": 3.14159 },
+  "slots": [
+    { "id": "gate", "type": "gate", "x": 0, "z": 13.5 },
+    { "id": "toro-1", "type": "lantern", "x": -3.4, "z": 6 },
+    { "id": "toro-2", "type": "lantern", "x": 3.4, "z": 6 },
+    { "id": "toro-3", "type": "lantern", "x": -3.4, "z": -1 },
+    { "id": "toro-4", "type": "lantern", "x": 3.4, "z": -1 },
+    { "id": "temizuya", "type": "temizuya", "x": 8, "z": 6.5 },
+    { "id": "komainu-a", "type": "guardian", "x": -2.8, "z": -7.5, "ry": 1.5708 },
+    { "id": "komainu-un", "type": "guardian", "x": 2.8, "z": -7.5, "ry": -1.5708 },
+    { "id": "omikuji", "type": "fortune_table", "x": 9.5, "z": -5, "ry": -1.5708 },
+    { "id": "wish-wall", "type": "wish_wall", "x": -10, "z": -4, "ry": 1.5708 },
+    { "id": "shinboku", "type": "tree", "x": -7.6, "z": 6.5, "r": 0.8, "rope": true },
+    { "id": "lamp-wall", "type": "lamp_wall", "x": -11.3, "z": -15.9, "ry": 1.5708, "rows": 6, "cols": 18 },
+    { "id": "altar", "type": "main_altar", "x": 0, "z": -28 }
+  ]
+}

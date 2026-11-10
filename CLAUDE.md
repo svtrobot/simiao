@@ -13,7 +13,7 @@
 
 ```bash
 npm start            # http://localhost:8787 （Node ≥ 20，零 npm 依赖）
-npm test             # 48 项测试，必须全部通过再提交
+npm test             # 52 项测试，必须全部通过再提交
 npm run loadtest     # 压测
 docker compose up -d --build   # 容器方式
 ```
@@ -23,7 +23,7 @@ docker compose up -d --build   # 容器方式
 
 - `server/` Node 服务，**零依赖**：`realtime/`（自实现 WebSocket、房间、分线）、`domain/`（功德、签、香火愿望、开庙、场景注册表、合规）、`store/`（JSON 文件存储）
 - `client/` 浏览器端，原生 ES Modules + three.js 0.170（import map 指向 `/vendor/three/`，未自托管时服务器 302 到 jsDelivr），**没有构建步骤**
-  - `src/world/` 场景包加载、程序化大殿 `temple.js`（佛像与胁侍 `statue.js`、殿内陈设 `interior.js`、远山松林院墙放生池 `landscape.js`）、天色季节 `env.js`、碰撞 `collide.js`、烟与落花 `fx.js`
+  - `src/world/` 场景包加载、程序化大殿 `temple.js`（建筑语汇 `styles.js`：中式 / 韩式山寺 / 神社，柱位等共用布局在 `layout.js`）（佛像与胁侍 `statue.js`、殿内陈设 `interior.js`、远山松林院墙放生池 `landscape.js`）、天色季节 `env.js`、碰撞 `collide.js`、烟与落花 `fx.js`
   - `src/avatar/nisheng.js` 泥生（形体、五阶段釉色着色器、IK 动作）
   - `src/rituals.js` 各仪式交互（含点灯与祈福卡）；黄历面板 `src/almanac.js`（历法计算在服务端 `server/domain/almanac.js`，零依赖：农历用 Intl chinese 历，节气用太阳黄经）；灯墙 `src/world/lampwall.js`；禅房 `src/zen.js` + `src/world/chamber.js`（单人场景，离开房间连接，分钟走 `/api/zen` 心跳）；抄经描红 `src/copy.js`（底本 `content/copy/texts.json`，服务端 `server/domain/copying.js` 限速计功德）；祖先堂 `src/ancestors.js` + `src/world/ancestral.js`（私人家堂，离开房间连接；服务端 `server/domain/ancestors.js`：家堂、灵位、忌日提醒、献供、寄语、烧纸限速）；`src/net.js` 房间客户端（插值）
 - `admin/` 平台后台 · `scenes/` 场景包 · `content/` 签诗 · `docs/` 文档 · `test/` · `tools/`

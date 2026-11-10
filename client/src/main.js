@@ -1,5 +1,5 @@
 // 云上寺 client entry: intro → session → scene → room.
-import { t, setLocale, applyI18n, localName } from './i18n.js';
+import { t, setLocale, setCulture, applyI18n, localName } from './i18n.js';
 import { api, startSession } from './api.js';
 import * as audio from './audio.js';
 import { $, toast, hint, bindPanelClose, updateMe, renderMe, setPresence, openPanel, closePanel } from './ui.js';
@@ -80,6 +80,26 @@ for (const b of document.querySelectorAll('[data-mood]')) {
   b.addEventListener('click', () => enter(b.dataset.mood));
 }
 
+/** 前往其他寺社: the public halls in this region, each in its own tradition. */
+async function openTemples(here) {
+  try {
+    const list = await api('GET', '/api/temples');
+    const ul = $('temples-list');
+    ul.textContent = '';
+    for (const tp of list) {
+      const li = document.createElement('li');
+      const a = document.createElement(tp.slug === here ? 'div' : 'a');
+      a.className = 'temple-row';
+      if (tp.slug !== here) a.href = tp.slug === 'main' ? '/' : `/t/${tp.slug}`;
+      const n = document.createElement('b'); n.textContent = localName(tp.name);
+      const c = document.createElement('small'); c.textContent = [tp.culture ? t(`culture.${tp.culture}`) : '', t('temples.online', tp.online)].filter(Boolean).join(' · ');
+      const g = document.createElement('span'); g.textContent = tp.slug === here ? t('temples.here') : t('temples.go');
+      a.append(n, c, g); li.append(a); ul.append(li);
+    }
+    openPanel('temples-panel');
+  } catch { toast(t('err.generic')); }
+}
+
 async function enter(mood) {
   $('moods').hidden = true;
   $('intro-status').textContent = t('intro.loading');
@@ -101,7 +121,10 @@ function start(game, session, info) {
   $('intro').classList.add('fade');
   setTimeout(() => { $('intro').hidden = true; }, 2600);
   $('topbar').hidden = false; $('actions').hidden = false;
+  // the scene's tradition renames a few things (參拜, 繪馬, 木鐸…)
+  setCulture(info.scene.culture); applyI18n();
   $('temple-name').textContent = localName(info.temple.name);
+  $('temple-name').onclick = () => openTemples(slug);
   if (info.temple.label) { $('temple-label').hidden = false; $('temple-label').textContent = t(`label.${info.temple.label}`); }
   else if (info.temple.certified && info.temple.type !== 'official') { $('temple-label').hidden = false; $('temple-label').textContent = t('label.certified'); }
   updateMe(session.user);
@@ -115,12 +138,21 @@ function start(game, session, info) {
     document.querySelectorAll('[data-ritual]').forEach((b) => { b.hidden = true; });
     toast(t('mode.cultural'));
   }
+  // a scene only offers the rituals its tradition has (manifest.rituals; the server enforces the same list)
+  const offered = info.scene.rituals;
+  if (offered) {
+    document.querySelectorAll('[data-ritual]').forEach((b) => {
+      const a = b.dataset.act === 'beads' ? 'bead' : b.dataset.act;
+      if (!offered.includes(a)) b.hidden = true;
+    });
+  }
+  const firstAct = !offered || offered.includes('incense') ? 'incense' : 'bow';
 
   // 第一个任务永远是“上一炷香”（2.1）——从祈福卡进来的人，先带他去看那盏灯
   if (card) setTimeout(() => game.rituals.visitLamp(card.lampId), 2800);
   const first = !card && info.mode !== 'cultural' && session.user.merit === 0;
   if (first) {
-    document.querySelector('[data-act="incense"]').classList.add('pulse');
+    document.querySelector(`[data-act="${firstAct}"]`).classList.add('pulse');
     setTimeout(() => hint(t('hint.first'), 7000), 2600);
   } else {
     setTimeout(() => hint(t('hint.walk'), 5000), 2600);
@@ -153,7 +185,7 @@ function start(game, session, info) {
   };
   for (const b of document.querySelectorAll('[data-act]')) {
     b.addEventListener('click', () => {
-      if (b.dataset.act === 'incense') b.classList.remove('pulse');
+      b.classList.remove('pulse');
       handlers[b.dataset.act]?.();
     });
   }

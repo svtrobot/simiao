@@ -17,7 +17,7 @@ import { toast, updateMe, setPresence } from '../ui.js';
  */
 async function loadPackage(scene, manifest, opts) {
   const builder = manifest.render.builder;
-  if (builder === 'procedural:cn-hall-v1') return buildTemple(manifest, opts);
+  if (builder === 'procedural:cn-hall-v1' || builder === 'procedural:hall-v2') return buildTemple(manifest, opts);
   const group = new THREE.Group();
   if (manifest.render.gltf) {
     const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
@@ -71,6 +71,7 @@ export async function createGame({ canvas, info, session, mood, slug }) {
     quality, hourOverride: new URLSearchParams(location.search).has('hour') ? Number(new URLSearchParams(location.search).get('hour')) : undefined,
     overlay: null, // the 禪房 (zen.js) renders its own scene in place of the hall
     mode: info.mode,
+    scene: manifest,
     self: () => selfEntry?.av,
     me: () => me,
     setMe(u) { me = { ...me, ...u }; updateMe(me); },

@@ -14,11 +14,17 @@ const OFFICIAL = {
   name: { 'zh-Hant': '雲上寺', 'zh-Hans': '云上寺' }, plaque: '雲上寺',
   sceneId: 'tw-main-hall', mode: 'ritual', visibility: 'public', status: 'live',
 };
+// The platform's own halls in other traditions (P1 日式 / 韓式場景). Seeded only when the scene package is loaded.
+const OFFICIAL_MORE = [
+  { ...OFFICIAL, id: 'jinja', slug: 'jinja', name: { 'zh-Hant': '雲上神社', 'zh-Hans': '云上神社', ja: '雲上神社' }, plaque: '雲上神社', sceneId: 'jp-shrine' },
+  { ...OFFICIAL, id: 'sansa', slug: 'sansa', name: { 'zh-Hant': '雲上山寺', 'zh-Hans': '云上山寺', ko: '운상산사' }, plaque: '大雄殿', sceneId: 'kr-sansa' },
+];
 
 export class TempleService {
   constructor({ store, scenes, regionPolicy, region }) {
     this.store = store; this.scenes = scenes; this.policy = regionPolicy; this.region = region;
     if (!store.get('temples', OFFICIAL.id)) store.put('temples', OFFICIAL.id, { ...OFFICIAL, createdAt: Date.now() });
+    for (const o of OFFICIAL_MORE) if (scenes.get(o.sceneId) && !store.get('temples', o.id)) store.put('temples', o.id, { ...o, createdAt: Date.now() });
   }
 
   get(slug) { return this.store.get('temples', slug); }

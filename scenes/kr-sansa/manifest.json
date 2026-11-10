@@ -1,0 +1,41 @@
+{
+  "id": "kr-sansa",
+  "version": 1,
+  "name": { "zh-Hant": "雲上山寺 · 大雄殿", "zh-Hans": "云上山寺 · 大雄殿", "ko": "운상산사 · 대웅전", "en": "Cloud Mountain Temple · Daeungjeon" },
+  "culture": "kr-buddhist",
+  "regions": ["tw", "overseas"],
+  "complianceModes": ["ritual", "cultural"],
+  "geo": null,
+  "license": { "status": "original", "expires": null, "partner": null },
+  "render": { "builder": "procedural:hall-v2", "gltf": null, "splat": null, "lods": [] },
+  "style": { "architecture": "kr-temple" },
+  "rituals": ["bow", "incense", "muyu", "bead"],
+  "budget": { "triangles": 210000, "drawCalls": 110, "textureMB": 20, "firstScreenMB": 0.9 },
+  "environment": {
+    "sky": "local-time",
+    "seasons": true,
+    "fog": { "color": "#c4c8c6", "near": 18, "far": 100 },
+    "ambience": "mountain-wind",
+    "palette": { "wood": "#8a3a2a", "roof": "#4b4d4f", "stone": "#a9a59c", "gold": "#c9a24a" }
+  },
+  "hall": { "x0": -12, "x1": 12, "z0": -30, "z1": -12, "floorY": 1.1, "steps": { "x": 0, "width": 6 } },
+  "walkArea": { "minX": -13, "maxX": 13, "minZ": -27.5, "maxZ": 14 },
+  "spawn": { "x": 0, "z": 12, "ry": 3.14159 },
+  "seatGrid": { "x0": -6.75, "z0": -24.2, "dx": 1.5, "dz": 1.12, "cols": 10, "rows": 10, "ry": 3.14159 },
+  "slots": [
+    { "id": "gate", "type": "gate", "x": 0, "z": 13.5 },
+    { "id": "lotus-1", "type": "lantern_line", "x": -11, "z": 7, "x2": 11, "z2": 7, "count": 22 },
+    { "id": "lotus-2", "type": "lantern_line", "x": -11, "z": 3.5, "x2": 11, "z2": 3.5, "count": 22 },
+    { "id": "lotus-3", "type": "lantern_line", "x": -11, "z": 0, "x2": 11, "z2": 0, "count": 22 },
+    { "id": "pagoda", "type": "pagoda", "x": 0, "z": -2.5 },
+    { "id": "stone-lantern", "type": "lantern", "x": 0, "z": -8.6 },
+    { "id": "burner-main", "type": "incense_burner", "x": -5.5, "z": -6.5, "radius": 1.0 },
+    { "id": "bell", "type": "bell", "x": 10, "z": -5 },
+    { "id": "wish-wall", "type": "wish_wall", "x": -10, "z": -2, "ry": 1.5708 },
+    { "id": "pond-west", "type": "pond", "x": -8.3, "z": 9, "w": 4.6, "d": 3 },
+    { "id": "zelkova", "type": "tree", "x": 7.5, "z": 9, "r": 0.7 },
+    { "id": "lamp-wall", "type": "lamp_wall", "x": -11.3, "z": -15.9, "ry": 1.5708, "rows": 6, "cols": 18 },
+    { "id": "altar", "type": "main_altar", "x": 0, "z": -28 },
+    { "id": "muyu", "type": "muyu", "x": 10, "z": -20, "ry": -1.5708 }
+  ]
+}
