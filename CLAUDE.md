@@ -13,15 +13,16 @@
 
 ```bash
 npm start            # http://localhost:8787 （Node ≥ 20，零 npm 依赖）
-npm test             # 58 项测试，必须全部通过再提交
+npm test             # 64 项测试（其中 4 项需要真的 PostgreSQL / Redis，没设 TEST_DATABASE_URL 时跳过），必须全部通过再提交
 npm run loadtest     # 压测
-docker compose up -d --build   # 容器方式
+docker compose up -d --build   # 容器方式（单实例）
+docker compose -f docker-compose.cluster.yml up -d --build   # PostgreSQL + Redis + 两实例 + Nginx（:8797）
 ```
 后台 `/admin` 需要环境变量 `ADMIN_TOKEN`。画质 `?q=low|med|high`，天色预览 `?hour=20`。
 
 ## 结构
 
-- `server/` Node 服务，**零依赖**：`realtime/`（自实现 WebSocket、房间、分线）、`domain/`（功德、签、香火愿望、开庙、场景注册表、合规）、`store/`（JSON 文件存储）
+- `server/` Node 服务，**零依赖**：`realtime/`（自实现 WebSocket、房间、分线）、`domain/`（功德、签、香火愿望、开庙、场景注册表、合规）、`store/`（默认 JSON 快照 + 追加日志；设 `DATABASE_URL` / `REDIS_URL` 后换成 `pgStore.js`：内存工作集 + PostgreSQL 落库 + Redis 同步，客户端 `pg.js` / `redis.js` 自写零依赖）
 - `client/` 浏览器端，原生 ES Modules + three.js 0.170（import map 指向 `/vendor/three/`，未自托管时服务器 302 到 jsDelivr），**没有构建步骤**
   - `src/world/` 场景包加载、程序化大殿 `temple.js`（建筑语汇 `styles.js`：中式 / 韩式山寺 / 神社，柱位等共用布局在 `layout.js`）（佛像与胁侍 `statue.js`、殿内陈设 `interior.js`、远山松林院墙放生池 `landscape.js`）、天色季节 `env.js`、碰撞 `collide.js`、烟与落花 `fx.js`
   - `src/avatar/nisheng.js` 泥生（形体、五阶段釉色着色器、IK 动作）
@@ -42,7 +43,7 @@ docker compose up -d --build   # 容器方式
 ## 已知限制 / 待办
 
 - 3D 画面已在电脑浏览器（含手机尺寸模拟）验证可正常渲染；**还没在真实手机上验证过**。部署后第一件事：中低端手机看一遍，修画面问题。
-- 数据是单机 JSON 快照 + 追加日志（`server/store/jsonStore.js`），只能单实例运行；单进程压测 10,000 人在线 5 分钟零掉线（`npm run loadtest`，见 `docs/LOADTEST.md`）；多实例前必须完成 PostgreSQL + Redis（`docs/ARCHITECTURE.md` 有逐项替换表）。
+- 数据层两种模式（`docs/CLUSTER.md`）：默认单机 JSON；`DATABASE_URL` + `REDIS_URL` 时为多实例。**存储接口是同步的**：每个实例把全部数据放在内存里，改动 200 ms 内落 PostgreSQL 并经 Redis 同步给其他实例，按文档「后写者胜」。因此：必须用粘性负载均衡（`deploy/nginx.cluster.conf`）；新的跨实例状态不要放在进程内存的 Map 里（放 store，或 `challenges` 那样的不落库集合）；计数器用「每实例一份、读时求和」；**涉及金钱的数据不要走这条路**，用 PostgreSQL 事务。单进程压测 10,000 人在线 5 分钟零掉线（`docs/LOADTEST.md`）。
 - 账号：游客令牌 + 「保存修行」（通行密钥 / 恢复码，`server/domain/accounts.js` + `client/src/account.js`，见 `docs/ACCOUNTS.md`）；不收集电话、email。手机号 / Google / Apple / LINE 登录与支付要先拿到各平台凭证。线上必须 HTTPS 并设置 `PUBLIC_ORIGIN`，否则通行密钥不可用。提醒走 Web Push（`server/domain/push.js` + `client/sw.js`，见 `docs/NOTIFICATIONS.md`）：早 8 点黄历、前一晚与当天的忌日 / 清明、睡前静坐，一天最多两则；VAPID 金钥存在数据里，备份时一起备份。灵位照片存在 JSON 存储里（单张 ≤ 90 KB），上 PostgreSQL 时改对象存储。
 - 他人的泥生是只跑 IK 的骨架（rig），由 `client/src/avatar/crowd.js` 按「部件 × 釉类 × 远近」合并成 GPU 实例化批次绘制，釉色 / 冰裂 / 金缮走实例属性；名牌合成一张图集一次画完。96 人同殿实测整帧 1,694 → 148 draw calls（大殿本身约 100），三角面 128 万 → 55 万（12 米外用半细分模型）。自己的泥生仍是完整网格与阴影。改泥生的部件或材质时，`nisheng.js` 的 slot 名与 `crowd.js` 的材质表要一起改。
 - 签诗是原创示例 12 签，需文化顾问审阅。

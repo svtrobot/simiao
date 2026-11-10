@@ -1,0 +1,72 @@
+# 多实例部署：PostgreSQL + Redis + 两个实例 + Nginx（docs/CLUSTER.md）
+#   docker compose -f docker-compose.cluster.yml up -d --build
+#   打开 http://localhost:8797 ；两个实例也各自暴露在 8791 / 8792 方便检查
+# 线上请在 .env 里设置 POSTGRES_PASSWORD、ADMIN_TOKEN、PUBLIC_ORIGIN，并在前面放 HTTPS。
+x-app: &app
+  build:
+    context: .
+    args:
+      VENDOR_THREE: "false"
+  image: simiao:latest
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_started
+  environment: &env
+    REGION: tw
+    ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+    PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-}
+    DATABASE_URL: postgres://simiao:${POSTGRES_PASSWORD:-simiao-dev-only}@postgres:5432/simiao
+    REDIS_URL: redis://redis:6379
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: simiao
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-simiao-dev-only}
+      POSTGRES_DB: simiao
+    volumes:
+      - simiao-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U simiao -d simiao"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # only pub/sub, presence and short locks live here: nothing needs to survive a restart
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+
+  app-a:
+    <<: *app
+    environment:
+      <<: *env
+      INSTANCE_ID: a
+    ports:
+      - "8791:8787"
+
+  app-b:
+    <<: *app
+    environment:
+      <<: *env
+      INSTANCE_ID: b
+    ports:
+      - "8792:8787"
+
+  lb:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on: [app-a, app-b]
+    ports:
+      - "8797:80"
+    volumes:
+      - ./deploy/nginx.cluster.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  simiao-pg:

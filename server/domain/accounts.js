@@ -98,7 +98,6 @@ export class AccountService {
    */
   constructor({ store, users, publicOrigin = '' }) {
     this.store = store; this.users = users; this.publicOrigin = publicOrigin;
-    this.challenges = new Map(); // b64u challenge → { kind, userId, exp } (single instance; Redis in P1 infra)
     this.tries = new Map();      // ip → { n, reset }
   }
 
@@ -154,9 +153,10 @@ export class AccountService {
   // ---- passkeys (WebAuthn)
 
   challenge(kind, userId, now = Date.now()) {
-    for (const [k, c] of this.challenges) if (c.exp < now) this.challenges.delete(k);
+    // 'challenges' is an ephemeral collection: replicated between instances, never persisted
+    for (const old of this.store.list('challenges', (x) => x.exp < now)) this.store.remove('challenges', old.id);
     const c = b64u(crypto.randomBytes(32));
-    this.challenges.set(c, { kind, userId, exp: now + CHALLENGE_MS });
+    this.store.put('challenges', c, { id: c, kind, userId, exp: now + CHALLENGE_MS });
     return c;
   }
 
@@ -165,8 +165,8 @@ export class AccountService {
     let cd;
     try { cd = JSON.parse(clientData.toString('utf8')); } catch { throw new HttpError(422, 'invalid_client_data'); }
     if (cd.type !== (kind === 'create' ? 'webauthn.create' : 'webauthn.get')) throw new HttpError(422, 'wrong_type');
-    const c = this.challenges.get(cd.challenge);
-    this.challenges.delete(cd.challenge);
+    const c = typeof cd.challenge === 'string' ? this.store.get('challenges', cd.challenge) : null;
+    if (c) this.store.remove('challenges', cd.challenge);
     if (!c || c.kind !== kind || c.exp < now || (userId && c.userId !== userId)) throw new HttpError(409, 'challenge_expired');
     if (cd.origin !== site.origin) throw new HttpError(403, 'wrong_origin');
     return cd;

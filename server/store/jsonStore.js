@@ -13,8 +13,9 @@ import { metrics } from '../metrics.js';
 const COMPACT_MIN = 4 * 1024 * 1024; // don't bother compacting small logs
 
 export class JsonStore {
-  constructor(dir, { flushMs = 500 } = {}) {
+  constructor(dir, { flushMs = 500, ephemeral = ['challenges'] } = {}) {
     this.dir = dir;
+    this.ephemeral = new Set(ephemeral); // never written to disk (e.g. WebAuthn challenges)
     this.flushMs = flushMs;
     this.cols = new Map();
     this.dirty = new Map();   // col → Set(ids changed since the last flush)
@@ -30,7 +31,7 @@ export class JsonStore {
     if (c) return c;
     c = new Map();
     const size = { snap: 0, log: 0 };
-    if (this.dir) {
+    if (this.dir && !this.ephemeral.has(name)) {
       const f = this._file(name, 'json');
       if (fs.existsSync(f)) {
         try {
@@ -71,7 +72,7 @@ export class JsonStore {
   remove(col, id) { const ok = this._col(col).delete(id); if (ok) this._touch(col, id); return ok; }
 
   _touch(col, id) {
-    if (!this.dir) return;
+    if (!this.dir || this.ephemeral.has(col)) return;
     let ids = this.dirty.get(col);
     if (!ids) this.dirty.set(col, (ids = new Set()));
     ids.add(id);
@@ -103,6 +104,9 @@ export class JsonStore {
       this.timer = setTimeout(() => this.flush(), 5000);
     }
   }
+
+  /** Same shutdown call as PgStore. */
+  async close() { this.flush({ compact: true }); }
 
   /** Snapshot = current map; then the log starts empty. Snapshot is written before the log is cleared. */
   _compact(col) {

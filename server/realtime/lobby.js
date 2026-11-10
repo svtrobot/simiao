@@ -1,5 +1,5 @@
 // 分线（6.2）：同一座殿按容量切分成多个房间，用户无感；全寺在线与香火每 5 秒聚合广播。
-// 单进程版本；多进程时把 templeStats / recentSitters / incense 换到 Redis，房间发现走 Redis。
+// 房间只存在于一个实例里；多实例时全寺在线数、房间数与最近静坐者经 Redis 汇总（cluster.js）。
 import { Room } from './room.js';
 import { effectiveMode } from '../domain/compliance.js';
 
@@ -53,7 +53,11 @@ export class Lobby {
   templeStats(templeId) {
     const t = this._t(templeId);
     if (t.incense === null) t.incense = this.ctx.offerings.incenseToday(templeId);
-    return { online: t.rooms.reduce((s, r) => s + r.size, 0), rooms: t.rooms.length, incense: t.incense, lamps: this.ctx.lamps.count(templeId) };
+    const c = this.ctx.cluster;
+    return {
+      online: t.rooms.reduce((s, r) => s + r.size, 0) + (c ? c.online(templeId) : 0),
+      rooms: t.rooms.length + (c ? c.rooms(templeId) : 0), incense: t.incense, lamps: this.ctx.lamps.count(templeId),
+    };
   }
 
   totalOnline() {
@@ -82,7 +86,20 @@ export class Lobby {
     t.sitters = [s, ...t.sitters.filter((x) => x.seat !== s.seat)].slice(0, 40);
   }
 
-  recentSitters(templeId) { return this._t(templeId).sitters; }
+  recentSitters(templeId) {
+    const own = this._t(templeId).sitters;
+    const c = this.ctx.cluster;
+    if (!c) return own;
+    const seen = new Set(own.map((s) => s.seat));
+    return [...own, ...c.sitters(templeId).filter((s) => !seen.has(s.seat) && seen.add(s.seat))].slice(0, 40);
+  }
+
+  /** This instance's share, published to the others (cluster.js). */
+  presence() {
+    const out = {};
+    for (const [id, t] of this.temples) out[id] = { online: t.rooms.reduce((s, r) => s + r.size, 0), rooms: t.rooms.filter((r) => r.size).length, sitters: t.sitters.slice(0, 20) };
+    return out;
+  }
 
   broadcastStats() {
     for (const [id, t] of this.temples) {

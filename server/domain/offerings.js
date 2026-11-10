@@ -1,21 +1,26 @@
 // 香火与愿望墙（设计文档 2.3 香炉广场、愿望墙）。
-// 香火计数按寺按日聚合，房间每 5 秒广播一次（6.2）；P1 换成 Redis INCR。
+// 香火计数按寺按日聚合，房间每 5 秒广播一次（6.2）。多实例时每个实例只写自己的计数文档
+// （键带 #实例号），读取时求和——并发上香不会互相覆盖（docs/CLUSTER.md）。
 import { dayKey, newId, HttpError } from './util.js';
 import { crisisSignal, ugcRejectReason } from './compliance.js';
 
 export class OfferingService {
-  constructor({ store, tz, hotline }) { this.store = store; this.tz = tz; this.hotline = hotline; }
+  constructor({ store, tz, hotline, shard = '' }) { this.store = store; this.tz = tz; this.hotline = hotline; this.shard = shard; }
 
   incenseToday(templeId, now = Date.now()) {
-    return this.store.get('incense_daily', `${templeId}:${dayKey(this.tz, now)}`)?.count || 0;
+    const day = dayKey(this.tz, now);
+    const single = this.store.get('incense_daily', `${templeId}:${day}`)?.count || 0;
+    if (!this.shard) return single;
+    return single + this.store.list('incense_daily', (d) => d.templeId === templeId && d.day === day && d.shard).reduce((n, d) => n + d.count, 0);
   }
 
   addIncense(templeId, sticks = 3, now = Date.now()) {
-    const key = `${templeId}:${dayKey(this.tz, now)}`;
-    const cur = this.store.get('incense_daily', key) || { count: 0 };
+    const day = dayKey(this.tz, now);
+    const key = this.shard ? `${templeId}:${day}#${this.shard}` : `${templeId}:${day}`;
+    const cur = this.store.get('incense_daily', key) || (this.shard ? { count: 0, templeId, day, shard: this.shard } : { count: 0 });
     cur.count += sticks;
     this.store.put('incense_daily', key, cur);
-    return cur.count;
+    return this.shard ? this.incenseToday(templeId, now) : cur.count;
   }
 
   addWish(user, templeId, { text, anonymous = true }) {

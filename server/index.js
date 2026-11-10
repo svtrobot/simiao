@@ -1,6 +1,20 @@
 import { createApp } from './app.js';
+import { config as bootConfig } from './config.js';
 
-const app = createApp();
+// DATABASE_URL (+ REDIS_URL): PostgreSQL-backed, replicated store; otherwise JSON files (store/open.js)
+let injected = {};
+if (bootConfig.databaseUrl) {
+  const { openCluster } = await import('./store/open.js');
+  const { store, cluster, loaded } = await openCluster(bootConfig);
+  injected = { store, cluster };
+  console.log(`  store: PostgreSQL (${loaded} documents loaded)${cluster ? ' + Redis replication' : ', single instance'} · instance ${bootConfig.instanceId}`);
+  // every instance must hand out the same push key: the first one to start creates it
+  if (!bootConfig.push?.keys) {
+    const { newVapidKeys } = await import('./domain/push.js');
+    await store.ensure('meta', 'vapid', () => newVapidKeys());
+  }
+}
+const app = createApp(injected);
 const { config, server, ctx } = app;
 
 server.listen(config.port, config.host, () => {
@@ -10,9 +24,15 @@ server.listen(config.port, config.host, () => {
   if (!config.adminToken) console.log('  admin API disabled (set ADMIN_TOKEN to enable /admin)');
 });
 
-// 提醒: check every minute whose local 08:00 / 20:00 / 22:00 it is (single instance; a job queue in P1 infra)
+// 提醒: check every minute whose local 08:00 / 20:00 / 22:00 it is.
+// With several instances only the one holding the Redis lock runs the tick, so nobody is reminded twice.
 if (config.push?.enabled !== false) {
-  setInterval(() => { ctx.push.tick().catch((e) => console.error('[push]', e.message)); }, 60_000).unref();
+  setInterval(async () => {
+    try {
+      if (ctx.cluster && !(await ctx.cluster.leader('push', 55))) return;
+      await ctx.push.tick();
+    } catch (e) { console.error('[push]', e.message); }
+  }, 60_000).unref();
 }
 
 // METRICS_LOG=1: one line of load metrics every 30 s (docs/LOADTEST.md)

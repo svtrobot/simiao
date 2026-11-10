@@ -20,14 +20,16 @@ import { attachWebSocket } from './realtime/ws.js';
 import { createHandler, sendJson } from './http.js';
 
 export function createApp(overrides = {}) {
-  const config = { ...defaultConfig, ...overrides, room: { ...defaultConfig.room, ...overrides.room } };
-  const store = new JsonStore(config.dataDir);
+  // `store` / `cluster` are injected by index.js when DATABASE_URL / REDIS_URL are set (store/open.js)
+  const { store: givenStore, cluster = null, ...rest } = overrides;
+  const config = { ...defaultConfig, ...rest, room: { ...defaultConfig.room, ...rest.room } };
+  const store = givenStore || new JsonStore(config.dataDir);
   const scenes = new SceneRegistry(config.scenesDir).load();
-  const ctx = { config, store, scenes };
+  const ctx = { config, store, scenes, cluster };
   ctx.users = new UserService({ store, locale: config.regionPolicy.locale });
   ctx.templesSvc = new TempleService({ store, scenes, regionPolicy: config.regionPolicy, region: config.region });
   ctx.fortune = new FortuneService({ contentDir: config.contentDir, store, tz: config.regionPolicy.tz });
-  ctx.offerings = new OfferingService({ store, tz: config.regionPolicy.tz, hotline: config.regionPolicy.hotline });
+  ctx.offerings = new OfferingService({ store, tz: config.regionPolicy.tz, hotline: config.regionPolicy.hotline, shard: cluster ? config.instanceId : '' });
   ctx.lamps = new LampService({ store, hotline: config.regionPolicy.hotline });
   ctx.lampKinds = LAMP_KINDS;
   ctx.ancestors = new AncestorService({ store, tz: config.regionPolicy.tz, hotline: config.regionPolicy.hotline });
@@ -45,6 +47,11 @@ export function createApp(overrides = {}) {
     mode: config.regionPolicy.ritualsAllowed ? 'ritual' : 'cultural', subject: config.push?.subject || 'https://github.com/svtrobot/simiao', keys: config.push?.keys || null,
   });
   ctx.lobby = new Lobby(ctx);
+  if (cluster) {
+    cluster.start(() => ctx.lobby.presence());
+    // a lamp lit through another instance: refresh this instance's rooms too
+    store.onRemote?.((col, id, doc) => { if (col === 'lamps' && doc?.templeId) ctx.lobby.bumpLamps(doc.templeId); });
+  }
   ctx.copy = new CopyService({ texts: new CopyTexts(config.contentDir), users: ctx.users, tz: config.regionPolicy.tz });
   ctx.zen = new ZenRooms({ users: ctx.users, tz: config.regionPolicy.tz, isSeatedElsewhere: (id) => ctx.lobby.isSeated(id) });
 
@@ -60,13 +67,13 @@ export function createApp(overrides = {}) {
     ctx.lobby.join(ws, user, temple);
   });
 
-  const close = () => new Promise((resolve) => {
+  const close = async () => {
     ctx.lobby.dispose();
     for (const ws of sockets) ws.close(1001, 'server shutting down');
-    store.flush({ compact: true });
-    server.close(() => resolve());
-    server.closeAllConnections?.();
-  });
+    await cluster?.stop();
+    await store.close();
+    await new Promise((resolve) => { server.close(() => resolve()); server.closeAllConnections?.(); });
+  };
 
   return { server, ctx, config, close, sendJson };
 }

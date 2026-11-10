@@ -80,7 +80,11 @@ export function createHandler(ctx) {
     return scene;
   };
 
-  route('GET', '/api/health', () => ({ ok: true, region: config.region, online: lobby.totalOnline(), uptime: Math.round(process.uptime()) }));
+  route('GET', '/api/health', () => ({
+    ok: true, region: config.region, uptime: Math.round(process.uptime()),
+    instance: config.instanceId, store: ctx.store.pg ? 'postgres' : 'json', instances: ctx.cluster?.instances || 1,
+    online: lobby.totalOnline() + (ctx.cluster?.totalOnlineElsewhere() || 0), onlineHere: lobby.totalOnline(),
+  }));
 
   route('GET', '/api/config', () => ({
     region: config.region, locale: config.regionPolicy.locale, ritualsAllowed: config.regionPolicy.ritualsAllowed,
@@ -317,6 +321,7 @@ export function createHandler(ctx) {
   return async function handle(req, res) {
     const url = new URL(req.url, 'http://x');
     metrics.http();
+    if (config.instanceId) res.setHeader('X-Instance', config.instanceId);
     try {
       if (url.pathname.startsWith('/api/')) {
         for (const r of routes) {

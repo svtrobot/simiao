@@ -12,6 +12,8 @@
     "dev": "node --watch server/index.js",
     "test": "node --test \"test/*.test.js\"",
     "loadtest": "node tools/loadtest.mjs",
-    "vendor:three": "node tools/vendor-three.mjs"
+    "vendor:three": "node tools/vendor-three.mjs",
+    "migrate:pg": "node tools/json-to-pg.mjs",
+    "cluster": "docker compose -f docker-compose.cluster.yml up -d --build"
   }
 }

@@ -23,13 +23,13 @@ Node 单进程（零依赖）
 | 现在 | P1 替换为 | 替换范围 |
 |---|---|---|
 | `realtime/ws.js` + `room.js` | Colyseus Room（状态 schema 增量同步） | `Room` 的公开行为（join / 消息 / tick）保持；协议见 PROTOCOL.md |
-| `lobby.js` 内存统计 | Redis：在线数、香火 INCR、房间发现、影子同修 | `templeStats` / `bumpIncense` / `recentSitters` 三个方法 |
-| `store/jsonStore.js` | PostgreSQL（按 `temple_id` 多租户） | 仓储接口 `get / put / list / update / remove` 不变 |
+| `lobby.js` 内存统计 | **已完成**：Redis 汇总在线数、房间数、影子同修（`realtime/cluster.js`）；香火改为每实例计数求和 | `templeStats` / `recentSitters` 读汇总值 |
+| `store/jsonStore.js` | **已完成**：`store/pgStore.js`（内存工作集 + PostgreSQL 落库 + Redis 同步），设 `DATABASE_URL` 启用；见 CLUSTER.md | 仓储接口 `get / put / list / update / remove` 不变 |
 | `http.js` 路由 | NestJS 控制器（账号、支付、背包、租户、内容、审核） | 路由路径不变 |
 | 游客令牌 | 正式账号（手机 / Google / Apple / LINE），令牌并入账号 | `UserService.session` |
 | 服务端日志 | ClickHouse 行为分析（北极星：周参拜用户） | 新增 |
 
-多实例部署前必须完成 Redis 与 PostgreSQL 两项；单进程实测 10,000 人同时在线、5 分钟零掉线（docs/LOADTEST.md）；先碰到的是出口带宽（每人约 2 KB/s）。
+多实例已可用（`docker-compose.cluster.yml`，两实例 + Nginx 粘性负载均衡，停一个另一个继续服务，见 CLUSTER.md）；单进程实测 10,000 人同时在线、5 分钟零掉线（docs/LOADTEST.md）；先碰到的是出口带宽（每人约 2 KB/s）。
 
 ## 客户端
 

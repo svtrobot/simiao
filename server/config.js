@@ -2,6 +2,7 @@
 // a mainland deployment is a new environment with REGION=cn, not a code fork.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const env = process.env;
@@ -26,6 +27,11 @@ export const config = {
   region,
   regionPolicy: REGIONS[region],
   dataDir: env.DATA_DIR || path.join(ROOT, 'data'),
+  // Multi-instance (docs/CLUSTER.md): PostgreSQL holds the data, Redis links the instances.
+  // Unset = single instance on JSON files in DATA_DIR.
+  databaseUrl: env.DATABASE_URL || '',
+  redisUrl: env.REDIS_URL || '',
+  instanceId: env.INSTANCE_ID || crypto.randomBytes(4).toString('hex'),
   clientDir: path.join(ROOT, 'client'),
   adminDir: path.join(ROOT, 'admin'),
   scenesDir: path.join(ROOT, 'scenes'),
