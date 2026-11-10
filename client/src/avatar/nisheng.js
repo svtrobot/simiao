@@ -7,6 +7,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export const MODEL_SCALE = 0.355;
+/** Layer for crowd rigs: never rendered directly (crowd.js draws them instanced). */
+export const RIG_LAYER = 31;
 const ZS = 0.86;
 const WAIST = 0.95;
 const NECK = 2.12;
@@ -42,15 +44,18 @@ function ribbon(fn, nu, nv) {
   return g;
 }
 
-let GEO = null;
-function geometry() {
-  if (GEO) return GEO;
+const GEO = [];
+/** Shared part geometry. lod 1 halves every tessellation (distant pilgrims). */
+export function geometry(lod = 0) {
+  if (GEO[lod]) return GEO[lod];
+  const q = lod ? 0.5 : 1;
+  const n = (x, min = 3) => Math.max(min, Math.round(x * q));
   const lowerPts = [[0, 0.02], [0.7, 0.0], [bodyR(0) , 0.06]];
   for (let y = 0.1; y <= WAIST + 0.06; y += 0.08) lowerPts.push([bodyR(y), y]);
   lowerPts.push([0, WAIST + 0.06]);
-  const lower = latheZ(lowerPts);
-  const waistBall = new THREE.SphereGeometry(bodyR(WAIST) * 0.985, 28, 16); waistBall.scale(1, 0.55, ZS); waistBall.translate(0, WAIST, 0);
-  const foot = new THREE.SphereGeometry(1, 16, 10);
+  const lower = latheZ(lowerPts, n(32));
+  const waistBall = new THREE.SphereGeometry(bodyR(WAIST) * 0.985, n(28), n(16)); waistBall.scale(1, 0.55, ZS); waistBall.translate(0, WAIST, 0);
+  const foot = new THREE.SphereGeometry(1, n(16), n(10));
   const footL = foot.clone(); footL.scale(0.15, 0.08, 0.16); footL.translate(0.23, 0.075, 0.74);
   const footR = foot.clone(); footR.scale(0.15, 0.08, 0.16); footR.translate(-0.23, 0.075, 0.74);
   const lowerClay = mergeGeometries([strip(lower), strip(waistBall)]);
@@ -60,10 +65,10 @@ function geometry() {
   for (let y = WAIST - 0.06; y <= 2.0; y += 0.07) upperPts.push([bodyR(y), y]);
   for (const y of [2.04, 2.09, 2.14, 2.18, 2.21, 2.235]) upperPts.push([Math.max(domeR(y), 0.02), y]);
   upperPts.push([0, 2.24]);
-  const upper = latheZ(upperPts); upper.translate(0, -WAIST, 0); // upper pivot at waist
+  const upper = latheZ(upperPts, n(32)); upper.translate(0, -WAIST, 0); // upper pivot at waist
 
   // hem: open felt skirt with uneven folds
-  const hem = new THREE.CylinderGeometry(1, 1, 1, 64, 6, true);
+  const hem = new THREE.CylinderGeometry(1, 1, 1, n(64), n(6, 2), true);
   const p = hem.attributes.position;
   for (let i = 0; i < p.count; i++) {
     const y01 = p.getY(i) + 0.5;
@@ -74,7 +79,7 @@ function geometry() {
     p.setXYZ(i, Math.cos(ang) * r, y - (1 - y01) * 0.012 * (1 + Math.sin(ang * 7)), Math.sin(ang) * r * ZS);
   }
   hem.computeVertexNormals();
-  const stitch = new THREE.TorusGeometry(bodyR(0.42) + 0.045, 0.007, 4, 90); stitch.rotateX(Math.PI / 2); stitch.scale(1, 1, ZS); stitch.translate(0, 0.42, 0);
+  const stitch = new THREE.TorusGeometry(bodyR(0.42) + 0.045, 0.007, 3, n(90)); stitch.rotateX(Math.PI / 2); stitch.scale(1, 1, ZS); stitch.translate(0, 0.42, 0);
 
   // sash over the LEFT shoulder (character's left = +x), down across to the right hip
   const top = new THREE.Vector2(0.34, 2.14), bot = new THREE.Vector2(-0.64, 0.98);
@@ -87,19 +92,19 @@ function geometry() {
     const z = side * ZS * Math.sqrt(Math.max(R * R - x * x, 0)) + side * 0.008;
     return new THREE.Vector3(x, q.y - WAIST, z);
   };
-  const sash = mergeGeometries([strip(ribbon(sashFn(1), 26, 4)), strip(ribbon(sashFn(-1), 26, 4))]);
+  const sash = mergeGeometries([strip(ribbon(sashFn(1), n(26), n(4, 2))), strip(ribbon(sashFn(-1), n(26), n(4, 2)))]);
 
   // 心灯：胸口莲苞形小窗
   const lampY = 1.18, lampZ = ZS * bodyR(lampY);
-  const lamp = new THREE.SphereGeometry(1, 18, 14); lamp.scale(0.085, 0.14, 0.035); lamp.translate(0, lampY - WAIST, lampZ - 0.004);
-  const rim = new THREE.TorusGeometry(1, 0.13, 6, 28); rim.scale(0.1, 0.155, 0.12); rim.translate(0, lampY - WAIST, lampZ - 0.01);
+  const lamp = new THREE.SphereGeometry(1, n(18), n(14)); lamp.scale(0.085, 0.14, 0.035); lamp.translate(0, lampY - WAIST, lampZ - 0.004);
+  const rim = new THREE.TorusGeometry(1, 0.13, n(6), n(28)); rim.scale(0.1, 0.155, 0.12); rim.translate(0, lampY - WAIST, lampZ - 0.01);
   const ringY = 1.88, ringX = 0.14;
   const ringZ = ZS * Math.sqrt(bodyR(ringY) ** 2 - ringX ** 2) + 0.07;
-  const ring = new THREE.TorusGeometry(0.06, 0.017, 8, 20); ring.translate(ringX, ringY - WAIST, ringZ);
+  const ring = new THREE.TorusGeometry(0.06, 0.017, n(8), n(20)); ring.translate(ringX, ringY - WAIST, ringZ);
   const brass = mergeGeometries([strip(ring)]);
 
   // head (in neck-pivot space) and engraved closed eyes
-  const head = new THREE.SphereGeometry(1, 36, 24); head.scale(0.68, 0.47, 0.58); head.translate(0, 2.62 - NECK, 0);
+  const head = new THREE.SphereGeometry(1, n(36), n(24)); head.scale(0.68, 0.47, 0.58); head.translate(0, 2.62 - NECK, 0);
   const eyes = [];
   for (const xc of [-0.215, 0.215]) {
     const pts = [];
@@ -109,15 +114,15 @@ function geometry() {
       pts.push(new THREE.Vector3(x, y - NECK, z));
     }
     // thick carved slot, as in the reference renders
-    eyes.push(strip(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 12, 0.032, 8, false)));
+    eyes.push(strip(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), n(12), 0.032, n(8), false)));
   }
 
   // limbs (oriented along +y, centred)
-  const upperArm = new THREE.CapsuleGeometry(0.115, L1, 4, 12);
-  const foreArm = new THREE.CapsuleGeometry(0.1, L2, 4, 12);
+  const upperArm = new THREE.CapsuleGeometry(0.115, L1, n(4, 2), n(12));
+  const foreArm = new THREE.CapsuleGeometry(0.1, L2, n(4, 2), n(12));
   // 半包指手：拇指独立，其余合为一（mitten）
-  const palm = new THREE.SphereGeometry(1, 16, 12); palm.scale(0.075, 0.13, 0.05); palm.translate(0, 0.1, 0);
-  const thumb = new THREE.CapsuleGeometry(0.028, 0.07, 3, 8); thumb.rotateZ(0.6); thumb.translate(0.065, 0.05, 0.02);
+  const palm = new THREE.SphereGeometry(1, n(16), n(12)); palm.scale(0.075, 0.13, 0.05); palm.translate(0, 0.1, 0);
+  const thumb = new THREE.CapsuleGeometry(0.028, 0.07, n(3, 2), n(8)); thumb.rotateZ(0.6); thumb.translate(0.065, 0.05, 0.02);
   const hand = mergeGeometries([strip(palm), strip(thumb)]);
 
   // props
@@ -126,14 +131,14 @@ function geometry() {
   const tip = new THREE.SphereGeometry(0.025, 6, 4);
   const tips = mergeGeometries([-0.045, 0, 0.045].map((x) => { const g = strip(tip.clone()); g.translate(x, 1.0, 0); return g; }));
   const mallet = mergeGeometries([strip(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6).translate(0, 0.25, 0)), strip(new THREE.SphereGeometry(0.07, 10, 8).translate(0, 0.52, 0))]);
-  const beads = new THREE.TorusGeometry(0.16, 0.03, 6, 40); beads.rotateX(Math.PI / 2.4);
+  const beads = new THREE.TorusGeometry(0.16, 0.03, n(6), n(40)); beads.rotateX(Math.PI / 2.4);
 
-  GEO = { lowerClay, feet, hem, stitch, upper, sash, lamp, rim, brass, head, eyes: mergeGeometries(eyes), upperArm, foreArm, hand, sticks, tips, mallet, beads };
-  return GEO;
+  GEO[lod] = { lowerClay, feet, hem, stitch, upper, sash, lamp, rim, brass, head, eyes: mergeGeometries(eyes), upperArm, foreArm, hand, sticks, tips, mallet, beads };
+  return GEO[lod];
 }
 
 // ---------------------------------------------------------------- materials (cached by look)
-const STAGE = {
+export const STAGE = {
   // Base colours sampled from the reference renders in docs/design/character/.
   raw: { color: '#b8ab9a', rough: 0.95, glaze: false },
   bisque: { color: '#cf8a5e', rough: 0.86, glaze: false },
@@ -141,9 +146,9 @@ const STAGE = {
   kiln: { color: '#b6cec9', rough: 0.18, glaze: true },
   kintsugi: { color: '#b6cec9', rough: 0.18, glaze: true },
 };
-const KILN = { celadon: '#b6cec9', ochre: '#c98e5a', inkcrackle: '#e6e1d6', harefur: '#3e3128' };
+export const KILN = { celadon: '#b6cec9', ochre: '#c98e5a', inkcrackle: '#e6e1d6', harefur: '#3e3128' };
 
-const GLSL_NOISE = `
+export const GLSL_NOISE = `
   vec3 nsHash(vec3 p){ p = fract(p*vec3(.1031,.1030,.0973)); p += dot(p, p.yxz+33.33); return fract((p.xxy+p.yxx)*p.zyx); }
   float nsWorley(vec3 p){ vec3 i=floor(p), f=fract(p); float f1=9.0, f2=9.0;
     for(int x=-1;x<=1;x++) for(int y=-1;y<=1;y++) for(int z=-1;z<=1;z++){
@@ -155,18 +160,58 @@ const GLSL_NOISE = `
                mix(mix(nsHash(i+vec3(0,0,1)).x,nsHash(i+vec3(1,0,1)).x,f.x),mix(nsHash(i+vec3(0,1,1)).x,nsHash(i+vec3(1,1,1)).x,f.x),f.y),f.z); }
 `;
 
+/**
+ * Glaze, crackle, 兔毫, 金缮 and the fingerprint, computed from vObj (part-local position).
+ * Reads uCrack uGold uSeed uPattern uPrint uGrain — uniforms for a single avatar, or #defines
+ * onto per-instance varyings in the crowd renderer (crowd.js). Defines nsGold for the next chunks.
+ */
+export const CLAY_FRAG = `        vec3 nsP = vObj*3.2 + uSeed;
+        float nsGrain = nsValue(vObj*55.0+uSeed);
+        diffuseColor.rgb *= 1.0 - uGrain*0.5 + uGrain*nsGrain;
+        diffuseColor.rgb *= 0.9 + 0.2*nsValue(vObj*4.0+uSeed);
+        // Large cell network shared by crackle and kintsugi (reference: stages_lineup.png).
+        float nsE = nsWorley(nsP*0.95);
+        float nsNet = 1.0 - smoothstep(0.0, 0.05, nsE);
+        if (uPattern > 0.5 && uPattern < 1.5) diffuseColor.rgb *= mix(0.35, 1.0, smoothstep(0.0, 0.05, nsE));
+        if (uPattern > 1.5) { float nsSt = nsValue(vec3(vObj.x*40.0, vObj.y*1.5, vObj.z*40.0)+uSeed); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.78,0.74,0.68), smoothstep(0.72,0.9,nsSt)); }
+        float nsHair = 1.0 - smoothstep(0.0, 0.025, nsWorley(nsP*2.1+7.0));
+        diffuseColor.rgb *= 1.0 - (nsNet*0.6 + nsHair*0.25)*uCrack;
+        float nsGold = (1.0 - smoothstep(0.0, 0.075, nsE)) * step(0.001, uGold) * step(nsValue(nsP*0.7), uGold+0.15);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.85,0.64,0.24), nsGold);
+        if (uPrint > 0.5 && vObj.z < -0.3) {
+          vec2 nsQ = (vObj.xy - vec2(0.05, 0.38)) * vec2(1.0, 0.8);
+          float nsD = length(nsQ) + 0.006*sin(atan(nsQ.y,nsQ.x)*3.0 + uSeed);
+          diffuseColor.rgb *= 1.0 - 0.12*step(nsD, 0.13)*step(0.5, fract(nsD*70.0));
+        }`;
+export const CLAY_ROUGH = 'roughnessFactor = mix(roughnessFactor, 0.3, nsGold);';
+export const CLAY_METAL = 'metalnessFactor = mix(metalnessFactor, 1.0, nsGold);';
+
 const matCache = new Map();
 /**
  * Clay material for a look: { stage, kiln, cracks 0..1, gold 0..12, seed }.
  * part: 'upper' (carries the fingerprint on the back), 'lower' or 'part'. Seeds are bucketed
  * so materials can be shared across avatars.
  */
-export function clayMaterial(look, part = 'part', { ghost = false } = {}) {
+/**
+ * A look reduced to shader inputs: { glaze, stage, kiln, cracks, gold, seed, pattern, color, rough }.
+ * The same quantisation feeds the per-avatar materials and the crowd's per-instance attributes.
+ */
+export function lookParams(look) {
   const stage = STAGE[look.stage] ? look.stage : 'raw';
   const kiln = stage === 'kiln' || stage === 'kintsugi' ? (KILN[look.kiln] ? look.kiln : 'celadon') : 'none';
   const cracks = Math.round((look.cracks || 0) * 4) / 4;
   const gold = stage === 'kintsugi' ? 1 : Math.min(1, Math.round((look.gold || 0)) / 6);
   const seed = (look.seed || 0) % 8;
+  const s = STAGE[stage];
+  return {
+    glaze: s.glaze, stage, kiln, cracks, gold, seed,
+    pattern: kiln === 'inkcrackle' ? 1 : kiln === 'harefur' ? 2 : 0,
+    color: new THREE.Color(kiln !== 'none' ? KILN[kiln] : s.color), rough: s.rough,
+  };
+}
+
+export function clayMaterial(look, part = 'part', { ghost = false } = {}) {
+  const { stage, kiln, cracks, gold, seed } = lookParams(look);
   const key = `${stage}|${kiln}|${cracks}|${gold}|${seed}|${part}|${ghost}`;
   if (matCache.has(key)) return matCache.get(key);
   const s = STAGE[stage];
@@ -188,24 +233,7 @@ export function clayMaterial(look, part = 'part', { ghost = false } = {}) {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>\nvarying vec3 vObj; uniform float uCrack, uGold, uSeed, uPattern, uPrint, uGrain;\n${GLSL_NOISE}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
-        vec3 nsP = vObj*3.2 + uSeed;
-        float nsGrain = nsValue(vObj*55.0+uSeed);
-        diffuseColor.rgb *= 1.0 - uGrain*0.5 + uGrain*nsGrain;
-        diffuseColor.rgb *= 0.9 + 0.2*nsValue(vObj*4.0+uSeed);
-        // Large cell network shared by crackle and kintsugi (reference: stages_lineup.png).
-        float nsE = nsWorley(nsP*0.95);
-        float nsNet = 1.0 - smoothstep(0.0, 0.05, nsE);
-        if (uPattern > 0.5 && uPattern < 1.5) diffuseColor.rgb *= mix(0.35, 1.0, smoothstep(0.0, 0.05, nsE));
-        if (uPattern > 1.5) { float nsSt = nsValue(vec3(vObj.x*40.0, vObj.y*1.5, vObj.z*40.0)+uSeed); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.78,0.74,0.68), smoothstep(0.72,0.9,nsSt)); }
-        float nsHair = 1.0 - smoothstep(0.0, 0.025, nsWorley(nsP*2.1+7.0));
-        diffuseColor.rgb *= 1.0 - (nsNet*0.6 + nsHair*0.25)*uCrack;
-        float nsGold = (1.0 - smoothstep(0.0, 0.075, nsE)) * step(0.001, uGold) * step(nsValue(nsP*0.7), uGold+0.15);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.85,0.64,0.24), nsGold);
-        if (uPrint > 0.5 && vObj.z < -0.3) {
-          vec2 nsQ = (vObj.xy - vec2(0.05, 0.38)) * vec2(1.0, 0.8);
-          float nsD = length(nsQ) + 0.006*sin(atan(nsQ.y,nsQ.x)*3.0 + uSeed);
-          diffuseColor.rgb *= 1.0 - 0.12*step(nsD, 0.13)*step(0.5, fract(nsD*70.0));
-        }`)
+${CLAY_FRAG}`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.3, nsGold);')
       .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 1.0, nsGold);');
   };
@@ -216,7 +244,7 @@ export function clayMaterial(look, part = 'part', { ghost = false } = {}) {
 }
 
 let SHARED = null;
-function shared() {
+export function shared() {
   if (SHARED) return SHARED;
   const c = document.createElement('canvas'); c.width = 256; c.height = 64;
   const g = c.getContext('2d');
@@ -237,6 +265,7 @@ function shared() {
     wood: new THREE.MeshStandardMaterial({ color: '#6a4a33', roughness: 0.7 }),
     beads: new THREE.MeshStandardMaterial({ color: '#4a2a1a', roughness: 0.5 }),
     ghost: new THREE.MeshBasicMaterial({ color: '#efe7da', transparent: true, opacity: 0.16, depthWrite: false }),
+    rig: new THREE.MeshBasicMaterial({ visible: false }),
   };
   return SHARED;
 }
@@ -312,7 +341,7 @@ export class Nisheng {
    * @param look  appearance from the server ({stage, kiln, cracks, gold, seed})
    * @param opts  { ghost, castShadow }
    */
-  constructor(look, { ghost = false, castShadow = false } = {}) {
+  constructor(look, { ghost = false, castShadow = false, crowd = false } = {}) {
     const G = geometry(), S = shared();
     this.look = look; this.ghost = ghost;
     this.root = new THREE.Group();
@@ -323,37 +352,47 @@ export class Nisheng {
     this.upperPivot = new THREE.Group(); this.upperPivot.position.y = WAIST; this.body.add(this.upperPivot);
     this.neck = new THREE.Group(); this.neck.position.y = NECK - WAIST; this.upperPivot.add(this.neck);
 
+    // crowd: this avatar is only a rig. Its part meshes sit on a layer no camera renders;
+    // crowd.js draws every rig's parts as instanced batches (one draw call per part type).
+    this.crowd = crowd;
+    this.slots = [];
     const ghostMat = ghost ? S.ghost : null;
-    const mk = (geo, m, parent) => { const mesh = new THREE.Mesh(geo, ghostMat || m); mesh.castShadow = castShadow && !ghost; mesh.receiveShadow = !ghost; parent.add(mesh); return mesh; };
-    this.mat = { upper: clayMaterial(look, 'upper', { ghost }), lower: clayMaterial(look, 'lower', { ghost }), part: clayMaterial(look, 'part', { ghost }) };
-    this.meshes = {
-      lower: mk(G.lowerClay, this.mat.lower, this.lowerG),
-      feet: mk(G.feet, this.mat.part, this.lowerG),
-      hem: mk(G.hem, S.hem, this.lowerG),
-      upper: mk(G.upper, this.mat.upper, this.upperPivot),
-      sash: mk(G.sash, S.sash, this.upperPivot),
-      brass: mk(G.brass, S.brass, this.upperPivot),
-      rim: mk(G.rim, S.rim, this.upperPivot),
-      head: mk(G.head, this.mat.part, this.neck),
-      eyes: mk(G.eyes, S.eyes, this.neck),
+    const mk = (name, m, key, parent) => {
+      const mesh = new THREE.Mesh(G[name], crowd ? S.rig : ghostMat || m);
+      mesh.castShadow = castShadow && !ghost; mesh.receiveShadow = !ghost;
+      if (crowd) { mesh.layers.set(RIG_LAYER); this.slots.push({ mesh, geo: name, mat: ghost ? 'ghost' : key }); }
+      parent.add(mesh); return mesh;
     };
-    if (!ghost) this.meshes.stitch = mk(G.stitch, S.stitch, this.lowerG);
+    this.mat = crowd ? null : { upper: clayMaterial(look, 'upper', { ghost }), lower: clayMaterial(look, 'lower', { ghost }), part: clayMaterial(look, 'part', { ghost }) };
+    const m = this.mat || {};
+    this.meshes = {
+      lower: mk('lowerClay', m.lower, 'clay', this.lowerG),
+      feet: mk('feet', m.part, 'clay', this.lowerG),
+      hem: mk('hem', S.hem, 'hem', this.lowerG),
+      upper: mk('upper', m.upper, 'clayPrint', this.upperPivot),
+      sash: mk('sash', S.sash, 'sash', this.upperPivot),
+      brass: mk('brass', S.brass, 'brass', this.upperPivot),
+      rim: mk('rim', S.rim, 'rim', this.upperPivot),
+      head: mk('head', m.part, 'clay', this.neck),
+      eyes: mk('eyes', S.eyes, 'eyes', this.neck),
+    };
+    if (!ghost) this.meshes.stitch = mk('stitch', S.stitch, 'stitch', this.lowerG);
     this.lampMat = new THREE.MeshStandardMaterial({ color: '#2a1608', emissive: '#ffb04a', emissiveIntensity: 1.2 });
     if (ghost) { this.lampMat.transparent = true; this.lampMat.opacity = 0.5; }
-    this.meshes.lamp = mk(G.lamp, this.lampMat, this.upperPivot);
+    this.meshes.lamp = mk('lamp', this.lampMat, 'lamp', this.upperPivot);
     this.meshes.lamp.castShadow = false;
 
     this.arms = [1, -1].map((side) => ({
       side,
-      upper: mk(G.upperArm, this.mat.part, this.body),
-      fore: mk(G.foreArm, this.mat.part, this.body),
-      hand: mk(G.hand, this.mat.part, this.body),
+      upper: mk('upperArm', m.part, 'clay', this.body),
+      fore: mk('foreArm', m.part, 'clay', this.body),
+      hand: mk('hand', m.part, 'clay', this.body),
       E: new THREE.Vector3(), W: new THREE.Vector3(),
     }));
     // props held in hand (hidden unless the pose needs them)
     this.props = {
-      sticks: mk(G.sticks, S.stick, this.body), tips: mk(G.tips, S.tip, this.body),
-      mallet: mk(G.mallet, S.wood, this.body), beads: mk(G.beads, S.beads, this.body),
+      sticks: mk('sticks', S.stick, 'stick', this.body), tips: mk('tips', S.tip, 'tip', this.body),
+      mallet: mk('mallet', S.wood, 'wood', this.body), beads: mk('beads', S.beads, 'beads', this.body),
     };
     for (const p of Object.values(this.props)) p.visible = false;
 
@@ -366,7 +405,8 @@ export class Nisheng {
 
   setLook(look) {
     this.look = look;
-    if (this.ghost) return;
+    this._inst = null;
+    if (this.ghost || this.crowd) return;
     this.mat = { upper: clayMaterial(look, 'upper'), lower: clayMaterial(look, 'lower'), part: clayMaterial(look, 'part') };
     this.meshes.upper.material = this.mat.upper; this.meshes.lower.material = this.mat.lower;
     for (const k of ['feet', 'head']) this.meshes[k].material = this.mat.part;
@@ -459,6 +499,12 @@ export class Nisheng {
     if (action === 'muyu') { this.props.mallet.position.copy(R.hand.position); this.props.mallet.quaternion.copy(R.hand.quaternion); this.props.mallet.rotateX(Math.PI / 2.2); }
     this.props.beads.visible = action === 'bead';
     if (action === 'bead') this.props.beads.position.copy(L.hand.position).add(new THREE.Vector3(-0.05, 0.03, 0.02));
+  }
+
+  /** Per-instance glaze data for the crowd renderer (cached until setLook). */
+  instanceLook() {
+    if (!this._inst) this._inst = lookParams(this.look);
+    return this._inst;
   }
 
   /** brief lamp flash on key frames (合掌碰合、点灯…) */

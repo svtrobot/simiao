@@ -616,8 +616,8 @@ export function buildAncestral({ look, mode, quality }) {
     },
     dispose() {
       for (const s of sheets) s.m.removeFromParent();
+      me.dispose(); // first: 泥生 geometry and materials are shared with the hall crowd, keep them
       scene.traverse((o) => { o.geometry?.dispose?.(); const m = o.material; if (m) for (const x of [].concat(m)) { x.map?.dispose?.(); x.dispose?.(); } });
-      me.dispose();
     },
   };
 }

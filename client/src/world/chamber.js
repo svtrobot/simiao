@@ -291,8 +291,8 @@ export function buildChamber({ look, mode, quality, hour: hourOverride }) {
     setDim(on) { state.dimTarget = on ? 1 : 0; },
     resize(w, h) { camera.aspect = w / h; camera.fov = w < h ? 62 : 48; camera.updateProjectionMatrix(); },
     dispose() {
+      me.dispose(); // first: 泥生 geometry and materials are shared with the hall crowd, keep them
       scene.traverse((o) => { o.geometry?.dispose?.(); const m = o.material; if (m) for (const x of [].concat(m)) { x.map?.dispose?.(); x.dispose?.(); } });
-      me.dispose();
     },
   };
 }
