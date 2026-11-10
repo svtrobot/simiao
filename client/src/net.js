@@ -39,6 +39,9 @@ export class RoomClient extends EventTarget {
 
   close() { this.closed = true; clearInterval(this.pingTimer); this.ws?.close(); }
 
+  /** Back into the hall after the 禪房: a fresh connection, a fresh welcome. */
+  reopen() { this.closed = false; this.retry = 0; this.connect(); }
+
   send(msg) { if (this.ws?.readyState === 1) this.ws.send(JSON.stringify(msg)); }
 
   /** Throttled movement update (5 Hz is plenty for a slow temple walk). */

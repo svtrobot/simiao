@@ -62,6 +62,12 @@ export class Lobby {
     return n;
   }
 
+  /** Is this account sitting on a seat in any hall right now? (禪房 must not double-count.) */
+  isSeated(userId) {
+    for (const t of this.temples.values()) for (const r of t.rooms) if (r.members.get(userId)?.seat) return true;
+    return false;
+  }
+
   bumpIncense(templeId, total) { this._t(templeId).incense = total; }
 
   /** A lamp was lit: push fresh stats now so everyone's lamp wall updates without waiting 5 s. */

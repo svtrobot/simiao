@@ -9,6 +9,7 @@ import { FortuneService } from './domain/fortune.js';
 import { OfferingService } from './domain/offerings.js';
 import { LampService, LAMP_KINDS } from './domain/lamps.js';
 import { DailyLines } from './domain/almanac.js';
+import { CopyTexts, CopyService, ZenRooms } from './domain/copying.js';
 import { record } from './domain/practice.js';
 import { effectiveMode, actionAllowed } from './domain/compliance.js';
 import { Lobby } from './realtime/lobby.js';
@@ -35,6 +36,8 @@ export function createApp(overrides = {}) {
     return r;
   };
   ctx.lobby = new Lobby(ctx);
+  ctx.copy = new CopyService({ texts: new CopyTexts(config.contentDir), users: ctx.users, tz: config.regionPolicy.tz });
+  ctx.zen = new ZenRooms({ users: ctx.users, tz: config.regionPolicy.tz, isSeatedElsewhere: (id) => ctx.lobby.isSeated(id) });
 
   const server = http.createServer(createHandler(ctx));
   const sockets = new Set();

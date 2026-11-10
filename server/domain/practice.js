@@ -25,6 +25,8 @@ export const RULES = {
   rejoice:  { minIntervalMs: 1000, dailyCap: 20,  merit: 1, habit: 'social' },
   // 為他人點燈＝為他人祈福（4.2）；為自己點燈不記功德，付費燈（P1）也不記
   lamp:     { minIntervalMs: 5000, dailyCap: 3,   merit: 2, habit: 'social' },
+  // 抄經 / 習字：5 字一個單位，每日最多記一部《心經》（260 字）；寫多了照樣可以寫，只是不再記
+  sutra:    { minIntervalMs: 0,    dailyCap: 52,  merit: 1, habit: 'sutra' },
   meditate: { minIntervalMs: 0,    dailyCap: 120, merit: 1, habit: 'meditate' }, // 每分钟 1
 };
 

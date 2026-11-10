@@ -68,6 +68,9 @@ export async function createGame({ canvas, info, session, mood, slug }) {
 
   const game = {
     controls, net, temple, slug, anchors: temple.anchors, templeName: localName(info.temple.name),
+    quality, hourOverride: new URLSearchParams(location.search).has('hour') ? Number(new URLSearchParams(location.search).get('hour')) : undefined,
+    overlay: null, // the 禪房 (zen.js) renders its own scene in place of the hall
+    mode: info.mode,
     self: () => selfEntry?.av,
     me: () => me,
     setMe(u) { me = { ...me, ...u }; updateMe(me); },
@@ -170,6 +173,12 @@ export async function createGame({ canvas, info, session, mood, slug }) {
   function frame() {
     const dt = Math.min(0.05, clock.getDelta());
     const tt = clock.elapsedTime;
+    if (game.overlay) {
+      game.overlay.update(dt, tt);
+      renderer.render(game.overlay.scene, game.overlay.camera);
+      requestAnimationFrame(frame);
+      return;
+    }
     controls.update(dt);
     if (selfEntry) {
       const r = selfEntry.av.root;

@@ -234,6 +234,78 @@
   <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
 </div>
 
+<!-- 靜坐：殿中同修，或一個人進禪房（2.2、2.3） -->
+<div id="sit-choice" class="panel bottom-panel sit-choice" hidden>
+  <p class="panel-tip" data-i18n="sitc.title">想在哪裡坐一會兒？</p>
+  <div class="sit-options">
+    <button type="button" id="sit-hall"><b data-i18n="sitc.hall">殿中同修</b><small data-i18n="sitc.hallSub">和殿裡的人一起坐</small></button>
+    <button type="button" id="sit-zen"><b data-i18n="sitc.zen">禪房獨坐</b><small data-i18n="sitc.zenSub">只有你一個人，適合睡前</small></button>
+  </div>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
+<!-- 禪房：單人，不顯示其他人 -->
+<div id="zen-fade" class="zen-fade" hidden><p id="zen-fade-text"></p></div>
+<section id="zen" class="zen" hidden aria-labelledby="zen-title">
+  <header class="zen-top">
+    <h2 id="zen-title" data-i18n="zen.title">禪房</h2>
+    <p id="zen-time" class="zen-time"></p>
+    <p id="zen-left" class="zen-left"></p>
+  </header>
+  <div id="zen-breath" class="zen-breath" hidden>
+    <div class="breath-ring"><div class="breath-core"></div></div>
+    <p id="zen-breath-word" class="breath-word"></p>
+  </div>
+  <div class="zen-bar">
+    <div class="zen-timers" role="group" aria-label="定時">
+      <button type="button" data-zen-timer="0" data-i18n="zen.free">不定時</button>
+      <button type="button" data-zen-timer="10">10′</button>
+      <button type="button" data-zen-timer="20">20′</button>
+      <button type="button" data-zen-timer="30">30′</button>
+    </div>
+    <div class="zen-acts">
+      <button type="button" id="zen-breath-btn" aria-pressed="false" data-i18n="zen.breath">呼吸</button>
+      <button type="button" id="zen-copy">抄經</button>
+      <button type="button" id="zen-dim" data-i18n="zen.dim">熄燈</button>
+      <button type="button" id="zen-leave" data-i18n="zen.leave">出禪房</button>
+    </div>
+  </div>
+</section>
+
+<!-- 抄經 / 習字：屏幕描紅 -->
+<div id="copy-panel" class="panel modal copy" hidden role="dialog" aria-modal="true" aria-labelledby="copy-title">
+  <header class="copy-head">
+    <div>
+      <h2 id="copy-title"></h2>
+      <small id="copy-by" class="fineprint"></small>
+    </div>
+    <select id="copy-text" aria-label="底本"></select>
+  </header>
+  <div id="copy-work">
+    <p id="copy-progress" class="copy-progress"></p>
+    <div id="copy-strip" class="copy-strip" aria-hidden="true"></div>
+    <div id="copy-box" class="copy-box">
+      <canvas id="copy-guide"></canvas>
+      <canvas id="copy-canvas" aria-label="描字區"></canvas>
+    </div>
+    <p class="fineprint" data-i18n="copy.tip">照著淡紅的字描一遍，寫好了會自動換下一個字</p>
+    <div class="row">
+      <button id="copy-clear" type="button" class="btn-ghost small" data-i18n="copy.clear">重寫這個字</button>
+      <button id="copy-guide-btn" type="button" class="btn-ghost small" aria-pressed="false" data-i18n="copy.noGuide">不看底字</button>
+      <button id="copy-restart" type="button" class="btn-ghost small" data-i18n="copy.restart">從頭寫起</button>
+    </div>
+  </div>
+  <div id="copy-done" class="copy-done" hidden>
+    <p id="copy-done-title" class="panel-tip"></p>
+    <p id="copy-dedication" class="copy-dedication"></p>
+    <div class="row">
+      <button id="copy-save" type="button" class="btn" data-i18n="copy.save">存下我的抄本</button>
+      <button id="copy-again" type="button" class="btn-ghost small" data-i18n="copy.again">再寫一遍</button>
+    </div>
+  </div>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
 <!-- 对他人致意 -->
 <div id="greet-menu" class="greet-menu" hidden role="menu">
   <p id="greet-name"></p>

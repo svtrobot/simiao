@@ -25,7 +25,7 @@ export function createRenderer(canvas, quality) {
 }
 
 /** Key colours for a given local hour (0–24). */
-function palette(hour) {
+export function palette(hour) {
   const keys = [
     // hemi / env are the fill light. three.js r155+ no longer scales light intensity by PI,
     // so the old values (≈0.7) left shaded sides at ~20% and avatars read as black.

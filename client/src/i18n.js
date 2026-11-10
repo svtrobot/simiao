@@ -80,6 +80,16 @@ const T = {
     'returned': '好久不見。泥生身上的細裂，已用金線補好了。', 'shadow': '此前來過的人',
     'mode.cultural': '此處為文化參訪模式',
     'err.net': '連線中斷，正在重新連接…', 'err.generic': '出了點小狀況，請稍後再試',
+    // 靜坐的去處 / 禪房（2.3）/ 抄經（3.2 屏幕描紅）
+    'sitc.title': '想在哪裡坐一會兒？', 'sitc.hall': '殿中同修', 'sitc.hallSub': '和殿裡的人一起坐', 'sitc.zen': '禪房獨坐', 'sitc.zenSub': '只有你一個人，適合睡前',
+    'zen.title': '禪房', 'zen.entering': '輕輕推開禪房的門……', 'zen.free': '不定時', 'zen.breath': '呼吸', 'zen.copy': '抄經', 'zen.write': '習字',
+    'zen.dim': '熄燈', 'zen.light': '亮燈', 'zen.leave': '出禪房', 'zen.dimHint': '燈慢慢暗了。輕觸螢幕可以再亮起來。',
+    'zen.left': (m, s) => `還有 ${m}:${String(s).padStart(2, '0')}`, 'zen.timeUp': '時間到了。慢慢睜開眼睛，動一動手指。',
+    'zen.summary': (m) => `這次在禪房坐了 ${m} 分鐘`, 'zen.summaryShort': '坐一會兒也很好。',
+    'copy.progress': (i, n, c) => `第 ${i} / ${n} 字${c ? ` · 已寫完 ${c} 遍` : ''}`, 'copy.tip': '照著淡紅的字描一遍，寫好了會自動換下一個字',
+    'copy.clear': '重寫這個字', 'copy.guide': '看底字', 'copy.noGuide': '不看底字', 'copy.restart': '從頭寫起', 'copy.restartAsk': '從第一個字重新寫起？已寫完的遍數會保留。',
+    'copy.finishing': '寫完最後一個字了……', 'copy.finished': (n) => `寫完了，這是你的第 ${n} 遍。`, 'copy.nth': (n) => `第 ${n} 遍`,
+    'copy.save': '存下我的抄本', 'copy.again': '再寫一遍', 'copy.slow': '慢一點，一筆一筆寫', 'copy.messy': '先擦乾淨，照著底字慢慢寫',
     'ui.close': '關閉', 'label.certified': '認證寺院', 'label.culture_space': '文化空間', 'label.culture': '文化空間', 'label.memorial': '紀念館', 'label.tourism': '文旅', 'label.family': '家族祠堂',
   },
 };
@@ -141,6 +151,16 @@ T['zh-Hans'] = {
   'me.title': '我的修行', 'me.minutes': '修行时长', 'me.streak': '连续到访', 'me.gold': '金缮线', 'me.note': '功德来自静坐与善念，买不到，也不必和谁比。', 'me.mins': (m) => `${m} 分钟`,
   'returned': '好久不见。泥生身上的细裂，已用金线补好了。', 'shadow': '此前来过的人', 'mode.cultural': '此处为文化参访模式',
   'err.net': '连接中断，正在重新连接…', 'err.generic': '出了点小状况，请稍后再试', 'ui.close': '关闭',
+  // 简体只在大陆（文化参访模式）出现：禅房叫「静室」，只有习字，没有抄经
+  'sitc.title': '想在哪里坐一会儿？', 'sitc.hall': '和大家一起坐', 'sitc.hallSub': '和殿里的人一起安静地坐', 'sitc.zen': '静室独坐', 'sitc.zenSub': '只有你一个人，适合睡前',
+  'zen.title': '静室', 'zen.entering': '轻轻推开静室的门……', 'zen.free': '不定时', 'zen.breath': '呼吸', 'zen.copy': '抄经', 'zen.write': '习字',
+  'zen.dim': '熄灯', 'zen.light': '亮灯', 'zen.leave': '离开静室', 'zen.dimHint': '灯慢慢暗了。轻触屏幕可以再亮起来。',
+  'zen.left': (m, s) => `还有 ${m}:${String(s).padStart(2, '0')}`, 'zen.timeUp': '时间到了。慢慢睁开眼睛，动一动手指。',
+  'zen.summary': (m) => `这次在静室坐了 ${m} 分钟`, 'zen.summaryShort': '坐一会儿也很好。',
+  'copy.progress': (i, n, c) => `第 ${i} / ${n} 字${c ? ` · 已写完 ${c} 遍` : ''}`, 'copy.tip': '照着淡红的字描一遍，写好了会自动换下一个字',
+  'copy.clear': '重写这个字', 'copy.guide': '看底字', 'copy.noGuide': '不看底字', 'copy.restart': '从头写起', 'copy.restartAsk': '从第一个字重新写起？已写完的遍数会保留。',
+  'copy.finishing': '写完最后一个字了……', 'copy.finished': (n) => `写完了，这是你的第 ${n} 遍。`, 'copy.nth': (n) => `第 ${n} 遍`,
+  'copy.save': '存下我的字帖', 'copy.again': '再写一遍', 'copy.slow': '慢一点，一笔一笔写', 'copy.messy': '先擦干净，照着底字慢慢写',
 };
 
 let locale = 'zh-Hant';

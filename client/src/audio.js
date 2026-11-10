@@ -111,3 +111,12 @@ export function startAmbience() {
   s.connect(f).connect(g).connect(master); s.start();
   ambience = { s, g };
 }
+
+/** Fade the ambience to `level` (0–1 of its normal loudness) over `seconds` — quieter in the 禪房. */
+export function setAmbience(level, seconds = 3) {
+  if (!ctx || !ambience) return;
+  const g = ambience.g.gain, now = ctx.currentTime;
+  g.cancelScheduledValues(now);
+  g.setValueAtTime(g.value, now);
+  g.linearRampToValueAtTime(level, now + seconds);
+}

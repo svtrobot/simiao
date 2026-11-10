@@ -238,8 +238,68 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .alm-ymd select option { background: #1d1814; }
 @media (max-width: 380px) { .alm-hours { grid-template-columns: repeat(4, 1fr); } .alm-yiji { grid-template-columns: 1fr; } }
 
+/* ---------- 靜坐去處 ---------- */
+.sit-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+.sit-options button { display: flex; flex-direction: column; gap: 4px; align-items: center; padding: 14px 8px; min-height: 76px; background: rgba(239, 231, 218, 0.05); border: 1px solid var(--glass-line); border-radius: 16px; }
+.sit-options button:hover { border-color: var(--gold); }
+.sit-options b { font-family: var(--serif); font-weight: 500; letter-spacing: 0.2em; font-size: 17px; }
+.sit-options small { color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+/* ---------- 禪房 ---------- */
+.topbar.quiet .presence, .topbar.quiet .alm-chip { display: none; }
+.zen-fade { position: fixed; inset: 0; z-index: 28; background: #050403; opacity: 0; transition: opacity 0.9s ease; display: grid; place-items: center; pointer-events: none; }
+.zen-fade.on { opacity: 1; pointer-events: auto; }
+.zen-fade p { font-family: var(--serif); letter-spacing: 0.3em; color: var(--paper-dim); }
+.zen { position: fixed; inset: 0; z-index: 11; pointer-events: none; transition: opacity 2.5s ease; }
+.zen > * { pointer-events: auto; }
+.zen-top { position: absolute; top: calc(64px + var(--safe-t)); left: 0; right: 0; text-align: center; pointer-events: none; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.8); }
+.zen-top h2 { font-family: var(--serif); font-weight: 500; letter-spacing: 0.6em; font-size: 18px; margin: 0; padding-left: 0.6em; color: var(--paper-dim); }
+.zen-time { margin: 6px 0 0; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.zen-left { margin: 2px 0 0; font-size: 13px; color: var(--gold); font-variant-numeric: tabular-nums; min-height: 1.3em; }
+.zen-breath { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; }
+.zen-bar { position: absolute; left: 50%; bottom: calc(14px + var(--safe-b)); transform: translateX(-50%); width: min(460px, calc(100vw - 16px)); display: grid; gap: 8px; padding: 10px; background: var(--glass); border: 1px solid var(--glass-line); border-radius: 22px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); transition: opacity 2s ease; }
+.zen-timers, .zen-acts { display: flex; gap: 6px; }
+.zen-timers button, .zen-acts button { flex: 1 1 0; min-height: 44px; background: transparent; border: 1px solid transparent; border-radius: 14px; font-size: 14px; color: var(--paper-dim); letter-spacing: 0.1em; }
+.zen-timers button { font-size: 13px; min-height: 36px; }
+.zen-timers button[aria-pressed="true"], .zen-acts button[aria-pressed="true"] { border-color: rgba(210, 173, 94, 0.55); color: var(--gold); }
+.zen-acts button:hover, .zen-timers button:hover { background: rgba(239, 231, 218, 0.07); color: var(--paper); }
+#zen-copy { color: var(--gold); }
+/* 熄燈: everything fades; a tap anywhere brings it back */
+.zen.dim { pointer-events: auto; }
+.zen.dim .zen-bar, .zen.dim .zen-top { opacity: 0; pointer-events: none; }
+body:has(.zen.dim) .topbar { opacity: 0; transition: opacity 2s ease; }
+
+/* ---------- 抄經 ---------- */
+.copy { width: min(480px, calc(100vw - 16px)); background: #ebe2cf; color: #2a221b; border-color: rgba(120, 90, 60, 0.3); padding: 18px 18px 14px; }
+.copy .fineprint { color: #7a6a58; }
+.copy .btn-ghost.small { border-color: rgba(60, 40, 25, 0.3); color: #3a2e24; }
+.copy .btn-ghost.small:hover { border-color: #a3362a; color: #a3362a; }
+.copy .btn { background: rgba(163, 54, 42, 0.1); border-color: rgba(163, 54, 42, 0.5); color: #7a2a20; }
+.copy .row { flex-wrap: wrap; }
+.copy-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; text-align: left; }
+.copy-head h2 { margin: 0; color: #2a221b; letter-spacing: 0.2em; font-size: 19px; }
+.copy-head select { background: transparent; border: 1px solid rgba(60, 40, 25, 0.3); border-radius: 10px; color: #3a2e24; font: inherit; font-size: 13px; padding: 6px 8px; min-height: 36px; }
+.copy-progress { margin: 10px 0 6px; font-size: 13px; color: #6a5a48; font-variant-numeric: tabular-nums; }
+.copy-strip { display: flex; justify-content: center; gap: 2px; height: 34px; overflow: hidden; font-family: "BiauKai", "DFKai-SB", "Kaiti TC", "STKaiti", "KaiTi", var(--serif); font-size: 22px; line-height: 34px; }
+.copy-strip span { width: 30px; flex: none; text-align: center; }
+.copy-strip .done { color: #2a221b; }
+.copy-strip .done img { width: 30px; height: 30px; display: block; margin: 2px 0; }
+.copy-strip .now { color: #a3362a; border-bottom: 2px solid #a3362a; }
+.copy-strip .next { color: rgba(60, 40, 25, 0.35); }
+.copy-box { position: relative; width: min(100%, 46vh, 400px); aspect-ratio: 1; margin: 8px auto 6px; background: #f4ecdc; border-radius: 4px; box-shadow: inset 0 0 0 1px rgba(120, 90, 60, 0.15), 0 2px 10px rgba(60, 40, 20, 0.12); }
+.copy-box canvas { position: absolute; inset: 0; touch-action: none; }
+#copy-canvas { cursor: crosshair; transition: opacity 0.22s ease; }
+#copy-canvas.settle { opacity: 0; }
+.copy-done { padding: 18px 0 6px; }
+.copy-dedication { font-family: "BiauKai", "DFKai-SB", "Kaiti TC", "STKaiti", "KaiTi", var(--serif); font-size: 19px; letter-spacing: 0.25em; line-height: 2; color: #3a2e24; text-wrap: balance; }
+
 @media (max-width: 560px) {
   .presence { display: none; }
+  /* the top bar must never wrap: temple name and the merit chip each stay on one line */
+  .topbar { justify-content: space-between; gap: 8px; }
+  .temple { min-width: 0; }
+  .temple-name { white-space: nowrap; font-size: 18px; letter-spacing: 0.12em; }
+  .me-chip { white-space: nowrap; gap: 6px; padding: 6px 10px; font-size: 12px; }
   /* All 8 rituals must fit without a hidden scroll: stretch the bar and let buttons share the width. */
   .actions { width: calc(100vw - 16px); gap: 2px; padding: 6px; }
   .actions button { flex: 1 1 0; min-width: 0; padding: 6px 0; font-size: 11px; }

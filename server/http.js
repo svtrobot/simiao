@@ -197,6 +197,27 @@ export function createHandler(ctx) {
     return { ...c, temple: { slug: t.slug, name: t.name }, mode: ctx.modeOf(t, scenes.get(t.sceneId)) };
   });
 
+  // ---- 禪房 / 抄經（2.2、2.3）----
+  // 抄經 is a ritual in ritual mode; cultural mode only offers the secular 習字 text (COMPLIANCE.md).
+  route('GET', '/api/temples/:slug/copy', (req, p) => {
+    const t = temple(p.slug);
+    const mode = ctx.modeOf(t, scenes.get(t.sceneId));
+    return { mode, texts: ctx.copy.list(users.byToken(token(req)), mode, config.regionPolicy.locale) };
+  });
+  route('POST', '/api/temples/:slug/copy', async (req, p) => {
+    const t = temple(p.slug);
+    const u = users.require(token(req));
+    const out = ctx.copy.write(u, await readJson(req), ctx.modeOf(t, scenes.get(t.sceneId)));
+    return { ...out, me: users.publicView(u) };
+  });
+  route('POST', '/api/temples/:slug/copy/restart', async (req, p) => {
+    temple(p.slug);
+    return ctx.copy.restart(users.require(token(req)), (await readJson(req)).id);
+  });
+  route('POST', '/api/zen/start', (req) => ctx.zen.start(users.require(token(req))));
+  route('POST', '/api/zen/beat', (req) => { const u = users.require(token(req)); return { ...ctx.zen.beat(u), me: users.publicView(u) }; });
+  route('POST', '/api/zen/end', (req) => { const u = users.require(token(req)); return { ...ctx.zen.end(u), me: users.publicView(u) }; });
+
   route('POST', '/api/temples/apply', async (req) => templesSvc.apply(await readJson(req)));
 
   // ---- admin (平台审核) ----

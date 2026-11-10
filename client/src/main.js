@@ -2,8 +2,9 @@
 import { t, setLocale, applyI18n, localName } from './i18n.js';
 import { api, startSession } from './api.js';
 import * as audio from './audio.js';
-import { $, toast, hint, bindPanelClose, updateMe, renderMe, setPresence, openPanel } from './ui.js';
+import { $, toast, hint, bindPanelClose, updateMe, renderMe, setPresence, openPanel, closePanel } from './ui.js';
 import { createAlmanac } from './almanac.js';
+import { createZen } from './zen.js';
 
 const params = new URLSearchParams(location.search);
 let slug = (location.pathname.match(/^\/t\/([a-z0-9-]+)/) || [])[1] || params.get('t') || 'main';
@@ -102,8 +103,16 @@ function start(game, session, info) {
   }
 
   const r = game.rituals;
+  // 靜坐: sit with everyone in the hall, or alone in the 禪房 (2.2 同修 / 靜修)
+  const zen = createZen(game, { mode: info.mode, slug });
+  const sitChoice = () => {
+    if (r.sitting) return;
+    openPanel('sit-choice');
+    $('sit-hall').onclick = () => { closePanel('sit-choice'); r.sit(); };
+    $('sit-zen').onclick = () => { closePanel('sit-choice'); zen.enter(); };
+  };
   const handlers = {
-    gassho: r.gassho, bow: r.bow, incense: r.incense, fortune: r.fortune, muyu: r.muyu, beads: r.beads, sit: r.sit, wish: r.wish, lamp: r.lamp,
+    gassho: r.gassho, bow: r.bow, incense: r.incense, fortune: r.fortune, muyu: r.muyu, beads: r.beads, sit: sitChoice, wish: r.wish, lamp: r.lamp,
   };
   for (const b of document.querySelectorAll('[data-act]')) {
     b.addEventListener('click', () => {
