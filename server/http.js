@@ -12,7 +12,7 @@ const MIME = {
   '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json',
   '.ktx2': 'image/ktx2', '.ogg': 'audio/ogg', '.mp3': 'audio/mpeg', '.wasm': 'application/wasm', '.ico': 'image/x-icon',
-  '.splat': 'application/octet-stream', '.ply': 'application/octet-stream',
+  '.splat': 'application/octet-stream', '.ply': 'application/octet-stream', '.webmanifest': 'application/manifest+json',
 };
 
 const SECURITY_HEADERS = {
@@ -105,6 +105,13 @@ export function createHandler(ctx) {
   route('POST', '/api/account/login/options', (req) => acc.loginOptions(req));
   route('POST', '/api/account/login', async (req) => { const r = await readJson(req, 32 * 1024); acc.throttle(ip(req), Date.now()); return acc.login(r, req); });
   route('POST', '/api/account/signout', (req) => { users.require(token(req)); users.revokeToken(token(req)); return { ok: true }; });
+
+  // ---- 提醒（Web Push，4.1）----
+  route('GET', '/api/push', (req) => ctx.push.status(users.require(token(req))));
+  route('POST', '/api/push/subscribe', async (req) => ctx.push.subscribe(users.require(token(req)), await readJson(req)));
+  route('POST', '/api/push/prefs', async (req) => ctx.push.setPrefs(users.require(token(req)), await readJson(req)));
+  route('POST', '/api/push/unsubscribe', async (req) => ctx.push.unsubscribe(users.require(token(req)), (await readJson(req)).endpoint));
+  route('POST', '/api/push/test', (req) => ctx.push.test(users.require(token(req))));
 
   route('POST', '/api/me/mood', async (req) => {
     const u = users.require(token(req));

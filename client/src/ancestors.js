@@ -47,6 +47,10 @@ export function createAncestors(game, { mode, slug }) {
   const burn = { on: false, kind: null, pending: 0, timer: 0, sending: false };
 
   const tablet = (id) => hall?.tablets.find((x) => x.id === id);
+  let remindOn = false;
+  const checkRemind = async () => {
+    try { const r = await navigator.serviceWorker?.getRegistration(); remindOn = !!(await r?.pushManager.getSubscription()) && Notification.permission === 'granted'; } catch { remindOn = false; }
+  };
   const onResize = () => room?.resize(window.innerWidth, window.innerHeight);
 
   async function fade(on, ms = 900) {
@@ -90,6 +94,7 @@ export function createAncestors(game, { mode, slug }) {
       room = buildAncestral({ look: game.me().look, mode, quality: game.quality });
       onResize(); window.addEventListener('resize', onResize);
       room.setTablets(hall.tablets);
+      await checkRemind();
       game.net.close();
       game.overlay = room;
       audio.setAmbience(0.18, 4);
@@ -151,6 +156,8 @@ export function createAncestors(game, { mode, slug }) {
     $('anc-title').textContent = hall.name ? t('anc.titleOf', hall.name) : t('anc.title');
     const next = hall.upcoming.find((e) => e.inDays <= 14);
     $('anc-upcoming').textContent = next ? reminderText({ ...next, ...(next.tabletId ? tablet(next.tabletId) : {}) }) : '';
+    // 提醒我: once there is a date worth remembering, offer reminders (opens 我的修行 → 提醒)
+    $('anc-remind').hidden = !hall.tablets.length || remindOn;
     $('anc-tip').textContent = !hall.tablets.length ? t('anc.emptyTip') : mode === 'ritual' ? t('anc.tapTip') : `${t('anc.tapTip')} · ${t('anc.culturalNote')}`;
     $('anc-bar').hidden = !!sel || burn.on;
     if (sel) renderSheet();
@@ -554,6 +561,7 @@ export function createAncestors(game, { mode, slug }) {
 
   $('anc-leave').onclick = leave;
   $('anc-family').onclick = openFamily;
+  $('anc-remind').onclick = () => { $('me-chip').click(); setTimeout(() => $('rem')?.scrollIntoView({ block: 'center' }), 500); };
   $('anc-add').onclick = () => openForm(null);
   $('anc-sheet-close').onclick = () => selectTablet(null);
   $('anc-edit').onclick = () => openForm(sel);

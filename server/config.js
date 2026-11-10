@@ -31,6 +31,12 @@ export const config = {
   scenesDir: path.join(ROOT, 'scenes'),
   contentDir: path.join(ROOT, 'content'),
   adminToken: env.ADMIN_TOKEN || '',
+  // Web Push (提醒): VAPID contact, and optionally a fixed key pair (JSON {jwk, publicKey}) for several instances.
+  push: {
+    subject: env.PUSH_SUBJECT || (env.PUBLIC_ORIGIN || '').replace(/\/$/, '') || 'https://github.com/svtrobot/simiao',
+    keys: env.VAPID_KEYS ? JSON.parse(env.VAPID_KEYS) : null,
+    enabled: env.PUSH !== 'off',
+  },
   // https://your.domain — passkeys are bound to this origin. Unset: the request's own Host is used.
   publicOrigin: (env.PUBLIC_ORIGIN || '').replace(/\/$/, ''),
   room: {

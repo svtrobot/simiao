@@ -7,6 +7,11 @@
 <title>雲上寺</title>
 <meta name="description" content="打開就能進入的線上寺院。安靜地坐一會兒，上一炷香。">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="雲上寺">
 <link rel="stylesheet" href="/styles.css">
 <script type="importmap">
 {
@@ -316,6 +321,7 @@
     <div class="anc-head">
       <h2 id="anc-title"></h2>
       <p id="anc-upcoming" class="anc-upcoming"></p>
+      <button id="anc-remind" type="button" class="link-btn anc-remind" hidden data-i18n="rem.remindMe">到時候提醒我</button>
     </div>
     <button id="anc-family" type="button" class="anc-pill" data-i18n="anc.family">家人</button>
   </header>
@@ -451,6 +457,19 @@
   <h2 id="me-title" data-i18n="me.title">我的修行</h2>
   <dl id="me-stats" class="me-stats"></dl>
   <p class="fineprint" data-i18n="me.note">功德來自靜坐、禮拜與善念，買不到，也不必和誰比。</p>
+  <section id="rem" class="acc">
+    <h3 data-i18n="rem.title">提醒</h3>
+    <p id="rem-status" class="panel-tip"></p>
+    <label class="check rem-row"><input type="checkbox" id="rem-morning"> <span data-i18n="rem.morning">早上 8 點：今天的黃曆與一句話</span></label>
+    <label class="check rem-row"><input type="checkbox" id="rem-family"> <span data-i18n="rem.family">家人的忌日、冥誕與清明（前一晚 8 點、當天早上）</span></label>
+    <label class="check rem-row"><input type="checkbox" id="rem-night"> <span data-i18n="rem.night">晚上 10 點：睡前靜坐五分鐘</span></label>
+    <div class="row">
+      <button id="rem-on" type="button" class="btn" data-i18n="rem.enable">開啟提醒</button>
+      <button id="rem-test" type="button" class="btn-ghost small" hidden data-i18n="rem.test">試一則</button>
+      <button id="rem-off" type="button" class="btn-ghost small" hidden data-i18n="rem.disable">關閉這台裝置的提醒</button>
+    </div>
+    <p class="fineprint" data-i18n="rem.gentle">一天最多兩則，只提醒、不催促。</p>
+  </section>
   <section id="acc" class="acc">
     <h3 data-i18n="acc.title">保存修行</h3>
     <p id="acc-status" class="panel-tip"></p>

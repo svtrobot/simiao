@@ -12,6 +12,7 @@ import { DailyLines } from './domain/almanac.js';
 import { CopyTexts, CopyService, ZenRooms } from './domain/copying.js';
 import { AncestorService } from './domain/ancestors.js';
 import { AccountService } from './domain/accounts.js';
+import { PushService } from './domain/push.js';
 import { record } from './domain/practice.js';
 import { effectiveMode, actionAllowed } from './domain/compliance.js';
 import { Lobby } from './realtime/lobby.js';
@@ -39,6 +40,10 @@ export function createApp(overrides = {}) {
     if (r.counted) ctx.users.save(user);
     return r;
   };
+  ctx.push = new PushService({
+    store, users: ctx.users, ancestors: ctx.ancestors, daily: ctx.daily, tz: config.regionPolicy.tz, locale: config.regionPolicy.locale,
+    mode: config.regionPolicy.ritualsAllowed ? 'ritual' : 'cultural', subject: config.push?.subject || 'https://github.com/svtrobot/simiao', keys: config.push?.keys || null,
+  });
   ctx.lobby = new Lobby(ctx);
   ctx.copy = new CopyService({ texts: new CopyTexts(config.contentDir), users: ctx.users, tz: config.regionPolicy.tz });
   ctx.zen = new ZenRooms({ users: ctx.users, tz: config.regionPolicy.tz, isSeatedElsewhere: (id) => ctx.lobby.isSeated(id) });

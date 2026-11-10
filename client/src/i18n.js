@@ -146,6 +146,11 @@ const T = {
     'act.muyu@kr-buddhist': '木鐸', 'hint.first@kr-buddhist': '先去香爐前，上一炷香吧',
     'temples.title': '前往其他寺社', 'temples.here': '目前所在', 'temples.online': (n) => `${n} 人在`, 'temples.go': '前往',
     'culture.zh-buddhist': '中式佛寺', 'culture.kr-buddhist': '韓式山寺', 'culture.jp-shinto': '日式神社',
+    'rem.title': '提醒', 'rem.morning': '早上 8 點：今天的黃曆與一句話', 'rem.family': '家人的忌日、冥誕與清明（前一晚 8 點、當天早上）', 'rem.night': '晚上 10 點：睡前靜坐五分鐘',
+    'rem.enable': '開啟提醒', 'rem.test': '試一則', 'rem.disable': '關閉這台裝置的提醒', 'rem.gentle': '一天最多兩則，只提醒、不催促。',
+    'rem.on': '這台裝置會收到提醒。', 'rem.off': '這台裝置還沒有開啟提醒。', 'rem.denied': '通知被瀏覽器封鎖了，請到瀏覽器或手機的設定裡允許。',
+    'rem.unsupported': '這個瀏覽器不支援提醒。', 'rem.ios': 'iPhone 請先用 Safari「分享 → 加入主畫面」，從主畫面打開後再開啟提醒。',
+    'rem.enabled': '提醒已開啟', 'rem.failed': '暫時開不了提醒，請稍後再試', 'rem.testSent': '送出了一則，留意通知', 'rem.remindMe': '到時候提醒我',
     'ui.close': '關閉', 'label.certified': '認證寺院', 'label.culture_space': '文化空間', 'label.culture': '文化空間', 'label.memorial': '紀念館', 'label.tourism': '文旅', 'label.family': '家族祠堂',
   },
 };
@@ -269,6 +274,11 @@ T['zh-Hans'] = {
   'act.muyu@kr-buddhist': '木铎',
   'temples.title': '前往其他寺社', 'temples.here': '目前所在', 'temples.online': (n) => `${n} 人在`, 'temples.go': '前往',
   'culture.zh-buddhist': '中式佛寺', 'culture.kr-buddhist': '韩式山寺', 'culture.jp-shinto': '日式神社',
+  'rem.title': '提醒', 'rem.morning': '早上 8 点：今天的黄历与一句话', 'rem.family': '家人的忌日、诞辰与清明（前一晚 8 点、当天早上）', 'rem.night': '晚上 10 点：睡前静坐五分钟',
+  'rem.enable': '开启提醒', 'rem.test': '试一则', 'rem.disable': '关闭这台设备的提醒', 'rem.gentle': '一天最多两则，只提醒、不催促。',
+  'rem.on': '这台设备会收到提醒。', 'rem.off': '这台设备还没有开启提醒。', 'rem.denied': '通知被浏览器屏蔽了，请到浏览器或手机的设置里允许。',
+  'rem.unsupported': '这个浏览器不支持提醒。', 'rem.ios': 'iPhone 请先用 Safari「分享 → 添加到主屏幕」，从主屏幕打开后再开启提醒。',
+  'rem.enabled': '提醒已开启', 'rem.failed': '暂时开不了提醒，请稍后再试', 'rem.testSent': '发出了一则，留意通知', 'rem.remindMe': '到时候提醒我',
 };
 
 let locale = 'zh-Hant';

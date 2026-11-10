@@ -7,6 +7,7 @@ import { createAlmanac } from './almanac.js';
 import { createZen } from './zen.js';
 import { createAncestors, reminderText } from './ancestors.js';
 import { createAccount } from './account.js';
+import { createReminders } from './remind.js';
 
 const params = new URLSearchParams(location.search);
 let slug = (location.pathname.match(/^\/t\/([a-z0-9-]+)/) || [])[1] || params.get('t') || 'main';
@@ -24,6 +25,8 @@ const configured = api('GET', '/api/config').then((c) => { config = c; setLocale
 bindPanelClose();
 // 保存修行: passkey / recovery code; the entrance screen offers 「找回我的修行」 before a session starts
 const account = createAccount();
+// 提醒 (Web Push): registers the service worker; subscribing happens only when the person turns it on
+const reminders = createReminders();
 if (cardId) configured.then(showCard); // after applyI18n, which would reset the button text
 if (inviteCode) configured.then(showInvite);
 
@@ -175,6 +178,16 @@ function start(game, session, info) {
     document.querySelector('[data-act="ancestor"]').classList.add('dot');
     setTimeout(() => toast(reminderText(near[0]), { gold: near[0].inDays === 0 }), 4200);
   });
+  // a tapped reminder opens where it points: /?go=ancestor | zen | almanac
+  const go = params.get('go');
+  if (go) {
+    history.replaceState(null, '', location.pathname);
+    setTimeout(() => {
+      if (go === 'ancestor') anc.enter();
+      else if (go === 'zen') zen.enter();
+      else if (go === 'almanac') $('alm-chip')?.click();
+    }, 2800);
+  }
   if (inviteCode) {
     history.replaceState(null, '', '/');
     setTimeout(() => anc.joinByInvite(inviteCode), 2800);
@@ -190,6 +203,6 @@ function start(game, session, info) {
     });
   }
   $('me-chip').addEventListener('click', async () => {
-    try { const me = await api('GET', '/api/me'); renderMe(me); await account.show(); openPanel('me-panel'); } catch { /* ignore */ }
+    try { const me = await api('GET', '/api/me'); renderMe(me); await Promise.all([account.show(), reminders.show()]); openPanel('me-panel'); } catch { /* ignore */ }
   });
 }

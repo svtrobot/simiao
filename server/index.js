@@ -10,6 +10,11 @@ server.listen(config.port, config.host, () => {
   if (!config.adminToken) console.log('  admin API disabled (set ADMIN_TOKEN to enable /admin)');
 });
 
+// 提醒: check every minute whose local 08:00 / 20:00 / 22:00 it is (single instance; a job queue in P1 infra)
+if (config.push?.enabled !== false) {
+  setInterval(() => { ctx.push.tick().catch((e) => console.error('[push]', e.message)); }, 60_000).unref();
+}
+
 let stopping = false;
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, async () => {
