@@ -63,7 +63,7 @@ export function createApp(overrides = {}) {
   const close = () => new Promise((resolve) => {
     ctx.lobby.dispose();
     for (const ws of sockets) ws.close(1001, 'server shutting down');
-    store.flush();
+    store.flush({ compact: true });
     server.close(() => resolve());
     server.closeAllConnections?.();
   });

@@ -29,7 +29,7 @@ Node 单进程（零依赖）
 | 游客令牌 | 正式账号（手机 / Google / Apple / LINE），令牌并入账号 | `UserService.session` |
 | 服务端日志 | ClickHouse 行为分析（北极星：周参拜用户） | 新增 |
 
-多实例部署前必须完成 Redis 与 PostgreSQL 两项；单实例按压测可承载约 2,000 人（设计目标，以压测为准）。
+多实例部署前必须完成 Redis 与 PostgreSQL 两项；单进程实测 10,000 人同时在线、5 分钟零掉线（docs/LOADTEST.md）；先碰到的是出口带宽（每人约 2 KB/s）。
 
 ## 客户端
 

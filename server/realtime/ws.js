@@ -139,6 +139,14 @@ export class WsConnection extends EventEmitter {
     return true;
   }
 
+  /** A frame already encoded by encodeFrame — one encoding shared by every member of a room. */
+  sendFrame(frame) {
+    if (!this.open || this.socket.destroyed) return false;
+    if (this.socket.writableLength > MAX_BUFFERED) { this.terminate(); return false; }
+    this.socket.write(frame);
+    return true;
+  }
+
   send(data) {
     const buf = Buffer.isBuffer(data) ? data : Buffer.from(String(data), 'utf8');
     return this._write(Buffer.isBuffer(data) ? OP.BIN : OP.TEXT, buf);

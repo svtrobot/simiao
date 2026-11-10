@@ -15,6 +15,12 @@ if (config.push?.enabled !== false) {
   setInterval(() => { ctx.push.tick().catch((e) => console.error('[push]', e.message)); }, 60_000).unref();
 }
 
+// METRICS_LOG=1: one line of load metrics every 30 s (docs/LOADTEST.md)
+if (process.env.METRICS_LOG === '1') {
+  const { metrics } = await import('./metrics.js');
+  setInterval(() => console.log('[metrics]', JSON.stringify({ online: ctx.lobby.totalOnline(), ...metrics.snapshot({ reset: true }) })), 30_000).unref();
+}
+
 let stopping = false;
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, async () => {

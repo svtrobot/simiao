@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { HttpError } from './domain/util.js';
 import { almanac, personal, todayIn } from './domain/almanac.js';
+import { metrics } from './metrics.js';
 
 export const THREE_VERSION = '0.170.0';
 
@@ -305,13 +306,17 @@ export function createHandler(ctx) {
     return { scenes: [...scenes.scenes.values()].map((s) => scenes.summary(s)), rejected: Object.fromEntries(scenes.errors) };
   });
   route('POST', '/api/admin/scenes/reload', (req) => { admin(req); scenes.load(); return { loaded: scenes.scenes.size, rejected: Object.fromEntries(scenes.errors) }; });
-  route('GET', '/api/admin/stats', (req) => {
+  route('GET', '/api/admin/stats', (req, p, url) => {
     admin(req);
-    return { online: lobby.totalOnline(), temples: [...lobby.temples.entries()].map(([id]) => ({ id, ...lobby.templeStats(id) })) };
+    return {
+      online: lobby.totalOnline(), temples: [...lobby.temples.entries()].map(([id]) => ({ id, ...lobby.templeStats(id) })),
+      metrics: metrics.snapshot({ reset: url.searchParams.get('reset') === '1' }),
+    };
   });
 
   return async function handle(req, res) {
     const url = new URL(req.url, 'http://x');
+    metrics.http();
     try {
       if (url.pathname.startsWith('/api/')) {
         for (const r of routes) {

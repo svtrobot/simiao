@@ -4,6 +4,8 @@
 import { clamp } from '../domain/util.js';
 import { record } from '../domain/practice.js';
 import { actionAllowed } from '../domain/compliance.js';
+import { metrics } from '../metrics.js';
+import { encodeFrame } from './ws.js';
 
 // Order matters: the index is the wire code (protocol.md). Append only.
 export const ACTION_LIST = ['idle', 'walk', 'pray', 'bow', 'prostrate', 'incense', 'muyu', 'bead', 'sit', 'fortune', 'wish'];
@@ -81,6 +83,7 @@ export class Room {
     // token bucket
     m.budget = Math.min(MSG_BUDGET, m.budget + ((now - m.budgetAt) / 1000) * MSG_BUDGET);
     m.budgetAt = now;
+    metrics.in();
     if (m.budget < 1) { if (++m.strikes > 50) m.ws.close(4008, 'rate'); return; }
     m.budget -= 1;
     m.lastMsgAt = now;
@@ -203,6 +206,11 @@ export class Room {
   }
 
   tick() {
+    const t0 = performance.now();
+    try { this._tick(); } finally { metrics.tick(performance.now() - t0); }
+  }
+
+  _tick() {
     const now = Date.now();
     for (const m of this.members.values()) {
       if (m.seat && now - m.lastCredit >= 60000) this._creditMeditation(m, now);
@@ -237,13 +245,15 @@ export class Room {
       e: this.events,
     };
     this.joined = []; this.left = []; this.events = [];
-    const raw = JSON.stringify(msg);
-    for (const m of this.members.values()) m.ws.send(raw);
+    this.broadcast(msg);
   }
 
+  /** One JSON encoding and one WebSocket frame for the whole room (server frames are unmasked, so identical). */
   broadcast(msg) {
     const raw = JSON.stringify(msg);
-    for (const m of this.members.values()) m.ws.send(raw);
+    const frame = encodeFrame(0x1, Buffer.from(raw, 'utf8'));
+    for (const m of this.members.values()) (m.ws.sendFrame ? m.ws.sendFrame(frame) : m.ws.send(raw));
+    metrics.out(this.members.size, frame.length);
   }
 
   dispose() { clearInterval(this.timer); }
