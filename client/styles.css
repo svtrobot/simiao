@@ -293,6 +293,85 @@ body:has(.zen.dim) .topbar { opacity: 0; transition: opacity 2s ease; }
 .copy-done { padding: 18px 0 6px; }
 .copy-dedication { font-family: "BiauKai", "DFKai-SB", "Kaiti TC", "STKaiti", "KaiTi", var(--serif); font-size: 19px; letter-spacing: 0.25em; line-height: 2; color: #3a2e24; text-wrap: balance; }
 
+/* ---- 祖先堂 ---- */
+.actions button.dot { position: relative; }
+.actions button.dot::after { content: ''; position: absolute; top: 6px; right: 10px; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+.card-view.invite .card-lamp { display: none; }
+.anc { position: fixed; inset: 0; z-index: 11; pointer-events: none; }
+.anc > * { pointer-events: auto; }
+.anc-hit { position: absolute; inset: 0; }
+.anc-top { position: absolute; top: calc(58px + var(--safe-t)); left: 10px; right: 10px; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; pointer-events: none; }
+.anc-top > * { pointer-events: auto; }
+.anc-head { text-align: center; min-width: 0; pointer-events: none; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.9); background: rgba(12, 9, 7, 0.55); border-radius: 16px; padding: 4px 14px 6px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.anc-head h2 { font-family: var(--serif); font-weight: 500; letter-spacing: 0.3em; font-size: 17px; margin: 2px 0 0; color: var(--paper); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.anc-upcoming { margin: 2px 0 0; font-size: 13px; color: var(--gold); letter-spacing: 0.05em; }
+.anc-pill { background: var(--glass); border: 1px solid var(--glass-line); border-radius: 999px; padding: 8px 14px; min-height: 40px; font-size: 13px; letter-spacing: 0.1em; color: var(--paper); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); white-space: nowrap; }
+.anc-bar { position: absolute; left: 50%; bottom: calc(18px + var(--safe-b)); transform: translateX(-50%); text-align: center; width: min(420px, calc(100vw - 24px)); }
+.anc-bar .fineprint { text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9); color: var(--paper-dim); margin: 0 0 10px; }
+.anc-sheet { position: absolute; left: 50%; bottom: calc(10px + var(--safe-b)); transform: translateX(-50%); width: min(460px, calc(100vw - 16px)); max-height: 54vh; overflow-y: auto; background: rgba(22, 18, 15, 0.88); border: 1px solid var(--glass-line); border-radius: 22px; padding: 16px 18px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-sizing: border-box; }
+.anc-who { display: flex; gap: 14px; align-items: flex-start; text-align: left; }
+.anc-who > div { flex: 1; min-width: 0; }
+.anc-who h3 { margin: 2px 0 2px; font-family: var(--serif); font-weight: 500; font-size: 19px; letter-spacing: 0.15em; }
+.anc-who .fineprint { margin: 0; }
+#anc-photo { width: 64px; height: 80px; object-fit: cover; border-radius: 6px; border: 2px solid #6b5532; filter: sepia(0.15); }
+.anc-epitaph { margin: 6px 0 0; font-family: var(--serif); color: var(--paper-dim); font-size: 14px; line-height: 1.6; }
+.anc-x { background: transparent; border: 0; color: var(--paper-dim); font-size: 22px; line-height: 1; padding: 4px 8px; min-width: 40px; min-height: 40px; }
+.anc-x.small { font-size: 16px; min-width: 32px; min-height: 32px; margin-left: auto; }
+.anc-offers { display: flex; gap: 6px; margin: 14px 0 6px; }
+.anc-offer { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 2px; min-height: 58px; background: rgba(239, 231, 218, 0.05); border: 1px solid var(--glass-line); border-radius: 14px; font-size: 12px; color: var(--paper-dim); }
+.anc-offer .glyph { font-family: var(--serif); font-size: 20px; color: var(--paper); }
+.anc-offer:hover:not(:disabled) { border-color: var(--gold); }
+.anc-offer:disabled { opacity: 1; border-color: rgba(210, 173, 94, 0.45); background: rgba(210, 173, 94, 0.1); color: var(--gold); cursor: default; }
+.anc-offer:disabled .glyph { color: var(--gold); }
+.anc-today { text-align: left; margin: 4px 0 6px; line-height: 1.6; }
+.anc-sheet .row { margin-top: 4px; align-items: center; }
+.anc-sheet .row .btn-ghost.small { margin-top: 0; }
+.anc-notes { text-align: left; margin-top: 12px; border-top: 1px solid var(--glass-line); padding-top: 10px; }
+.anc-notes h4 { margin: 0 0 6px; font-weight: 500; font-size: 13px; color: var(--paper-dim); letter-spacing: 0.2em; }
+.anc-notes ul { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; max-height: 160px; overflow-y: auto; }
+.anc-notes li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; font-size: 14px; line-height: 1.6; }
+.anc-notes li b { font-weight: 500; color: var(--gold); font-size: 13px; }
+.anc-notes li small { color: var(--muted); font-size: 11px; }
+.anc-note-form { display: flex; gap: 8px; }
+.anc-note-form input, .anc-rename input, .anc-invite input { flex: 1; min-width: 0; background: rgba(239, 231, 218, 0.06); color: var(--paper); border: 1px solid var(--glass-line); border-radius: 10px; padding: 10px; font: inherit; min-height: 44px; }
+.anc-note-form .btn { padding: 8px 16px; letter-spacing: 0.1em; }
+.anc-burn { position: absolute; left: 50%; bottom: calc(10px + var(--safe-b)); transform: translateX(-50%); width: min(420px, calc(100vw - 16px)); box-sizing: border-box; background: rgba(22, 18, 15, 0.82); border: 1px solid var(--glass-line); border-radius: 22px; padding: 12px 16px; text-align: center; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+.anc-burn .panel-tip { margin: 0 0 8px; color: var(--paper); font-family: var(--serif); letter-spacing: 0.15em; }
+.anc-burn .btn-ghost.small { margin-top: 6px; }
+.anc-papers { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; }
+.anc-papers button { background: transparent; border: 1px solid var(--glass-line); border-radius: 999px; padding: 6px 14px; min-height: 36px; font-size: 13px; color: var(--paper-dim); }
+.anc-papers button[aria-checked="true"] { border-color: var(--gold); color: var(--gold); background: rgba(210, 173, 94, 0.1); }
+.anc-stack-row { display: flex; align-items: center; gap: 14px; text-align: left; }
+.anc-stack-row .fineprint { margin: 0; flex: 1; }
+.anc-stack { position: relative; width: 72px; height: 72px; flex: none; background: transparent; border: 0; padding: 0; touch-action: none; cursor: grab; }
+.anc-stack span, .anc-drag { position: absolute; width: 58px; height: 58px; border-radius: 3px; background: #c9b48a; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
+.anc-stack span { left: 7px; top: 7px; }
+.anc-stack span:nth-child(1) { transform: rotate(-8deg) translate(-3px, 3px); }
+.anc-stack span:nth-child(2) { transform: rotate(5deg) translate(2px, 1px); }
+.anc-stack span::after, .anc-drag::after { content: ''; position: absolute; inset: 16px; background: linear-gradient(135deg, #eef0f2, #a7aeb4 55%, #dfe3e6); }
+.anc-stack[data-kind="ingot"] span, .anc-drag[data-kind="ingot"] { background: linear-gradient(135deg, #f2d27a, #c9962e 55%, #f0cf78); border-radius: 40% 40% 50% 50% / 30% 30% 70% 70%; height: 38px; }
+.anc-stack[data-kind="ingot"] span { top: 18px; }
+.anc-stack[data-kind="lotus"] span, .anc-drag[data-kind="lotus"] { background: radial-gradient(circle at 50% 70%, #fbe1d6, #f0a896 60%, #d77e6a); border-radius: 50% 50% 45% 45%; }
+.anc-stack[data-kind="ingot"] span::after, .anc-stack[data-kind="lotus"] span::after, .anc-drag[data-kind="ingot"]::after, .anc-drag[data-kind="lotus"]::after { display: none; }
+.anc-drag { position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none; opacity: 0.95; }
+.anc-ring { position: absolute; border-radius: 50%; border: 2px dashed rgba(255, 170, 90, 0.45); box-shadow: 0 0 24px rgba(255, 140, 60, 0.18) inset; pointer-events: none; transition: border-color 0.2s, box-shadow 0.2s; }
+.anc-ring.over { border-color: rgba(255, 190, 110, 0.95); box-shadow: 0 0 36px rgba(255, 140, 60, 0.45) inset, 0 0 24px rgba(255, 140, 60, 0.3); }
+.anc-members { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 4px; text-align: left; }
+.anc-members li { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px solid rgba(239, 231, 218, 0.08); }
+.anc-members li small { color: var(--gold); font-size: 11px; border: 1px solid rgba(210, 173, 94, 0.5); border-radius: 4px; padding: 0 5px; }
+.anc-members li .btn-ghost.small { margin: 0 0 0 auto; padding: 4px 12px; }
+.anc-invite input { width: 100%; box-sizing: border-box; font-size: 13px; }
+.anc-rename { display: flex; gap: 8px; margin-bottom: 12px; }
+.anc-rename .btn-ghost.small { margin-top: 0; }
+.anc-halls { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.anc-halls .btn-ghost.small { margin-top: 0; }
+#anc-fam h3 { font-weight: 500; font-size: 13px; color: var(--paper-dim); letter-spacing: 0.2em; margin: 16px 0 8px; }
+.anc-photo-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.anc-photo-row img { width: 56px; height: 70px; object-fit: cover; border-radius: 6px; border: 2px solid #6b5532; }
+.anc-photo-row .btn-ghost.small { margin-top: 0; }
+.anc-file { position: relative; overflow: hidden; cursor: pointer; display: inline-block; }
+.anc-file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
 @media (max-width: 560px) {
   .presence { display: none; }
   /* the top bar must never wrap: temple name and the merit chip each stay on one line */
@@ -304,7 +383,14 @@ body:has(.zen.dim) .topbar { opacity: 0; transition: opacity 2s ease; }
   .actions { width: calc(100vw - 16px); gap: 2px; padding: 6px; }
   .actions button { flex: 1 1 0; min-width: 0; padding: 6px 0; font-size: 11px; }
   .actions button .glyph { font-size: 18px; }
+  .anc-head h2 { font-size: 16px; letter-spacing: 0.2em; }
+  .anc-pill { padding: 8px 11px; }
+  .anc-sheet { max-height: 50vh; padding: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+/* landscape: the tablet sheet sits on the right so the tablet stays in view */
+@media (orientation: landscape) and (min-width: 640px) {
+  .anc-sheet { left: auto; right: 12px; transform: none; top: calc(58px + var(--safe-t)); bottom: calc(12px + var(--safe-b)); max-height: none; width: min(400px, 48vw); }
 }

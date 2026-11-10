@@ -27,6 +27,8 @@ export const RULES = {
   lamp:     { minIntervalMs: 5000, dailyCap: 3,   merit: 2, habit: 'social' },
   // 抄經 / 習字：5 字一個單位，每日最多記一部《心經》（260 字）；寫多了照樣可以寫，只是不再記
   sutra:    { minIntervalMs: 0,    dailyCap: 52,  merit: 1, habit: 'sutra' },
+  // 祖先堂獻供：每位親人每天第一次獻供記一次，每天最多 3 位（慎終追遠）；燒紙不記功德
+  memorial: { minIntervalMs: 0,    dailyCap: 3,   merit: 2, habit: 'incense' },
   meditate: { minIntervalMs: 0,    dailyCap: 120, merit: 1, habit: 'meditate' }, // 每分钟 1
 };
 

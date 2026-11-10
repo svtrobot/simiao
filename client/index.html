@@ -75,6 +75,7 @@
   <button type="button" data-act="beads" data-ritual><span class="glyph">珠</span><span data-i18n="act.beads">念珠</span></button>
   <button type="button" data-act="sit"><span class="glyph">坐</span><span data-i18n="act.sit">靜坐</span></button>
   <button type="button" data-act="lamp"><span class="glyph">燈</span><span data-i18n="act.lamp">點燈</span></button>
+  <button type="button" data-act="ancestor"><span class="glyph">祖</span><span data-i18n="act.ancestor">祖先</span></button>
   <button type="button" data-act="wish"><span class="glyph">願</span><span data-i18n="act.wish">祈願</span></button>
 </nav>
 
@@ -303,6 +304,135 @@
       <button id="copy-again" type="button" class="btn-ghost small" data-i18n="copy.again">再寫一遍</button>
     </div>
   </div>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
+<!-- 祖先堂：私人家堂，只有家人看得到（2.3、3.2） -->
+<section id="anc" class="anc" hidden aria-labelledby="anc-title">
+  <div id="anc-hit" class="anc-hit" aria-hidden="true"></div>
+  <header class="anc-top">
+    <button id="anc-leave" type="button" class="anc-pill" data-i18n="anc.leave">回寺裡</button>
+    <div class="anc-head">
+      <h2 id="anc-title"></h2>
+      <p id="anc-upcoming" class="anc-upcoming"></p>
+    </div>
+    <button id="anc-family" type="button" class="anc-pill" data-i18n="anc.family">家人</button>
+  </header>
+  <div id="anc-bar" class="anc-bar">
+    <p id="anc-tip" class="fineprint"></p>
+    <button id="anc-add" type="button" class="btn" data-i18n="anc.add">設靈位</button>
+  </div>
+  <div id="anc-sheet" class="anc-sheet" hidden role="dialog" aria-labelledby="anc-name">
+    <header class="anc-who">
+      <img id="anc-photo" alt="" hidden>
+      <div>
+        <h3 id="anc-name"></h3>
+        <p id="anc-meta" class="fineprint"></p>
+        <p id="anc-epitaph" class="anc-epitaph"></p>
+      </div>
+      <button id="anc-sheet-close" type="button" class="anc-x" aria-label="關閉">×</button>
+    </header>
+    <div id="anc-offers" class="anc-offers"></div>
+    <p id="anc-today" class="fineprint anc-today"></p>
+    <div class="row">
+      <button id="anc-burn-btn" type="button" class="btn" data-i18n="anc.burn">燒紙</button>
+      <button id="anc-edit" type="button" class="btn-ghost small" data-i18n="anc.edit">編輯</button>
+    </div>
+    <section class="anc-notes">
+      <h4 data-i18n="anc.notes">寄語</h4>
+      <ul id="anc-notes"></ul>
+      <form id="anc-note-form" class="anc-note-form">
+        <input id="anc-note" maxlength="60" autocomplete="off" aria-label="寄語">
+        <button type="submit" class="btn" data-i18n="anc.send">送出</button>
+      </form>
+      <p id="anc-support" class="support" hidden></p>
+    </section>
+  </div>
+  <div id="anc-burn" class="anc-burn" hidden>
+    <p id="anc-burn-for" class="panel-tip"></p>
+    <div id="anc-papers" class="anc-papers" role="radiogroup"></div>
+    <div class="anc-stack-row">
+      <button id="anc-stack" type="button" class="anc-stack" aria-describedby="anc-burn-tip"><span></span><span></span><span></span></button>
+      <p id="anc-burn-tip" class="fineprint" data-i18n="anc.burnTip">按住紙，拖進火盆；也可以輕觸放一張</p>
+    </div>
+    <p id="anc-burn-count" class="fineprint"></p>
+    <button id="anc-burn-done" type="button" class="btn-ghost small" data-i18n="anc.burnDone">好了</button>
+  </div>
+  <div id="anc-ring" class="anc-ring" hidden></div>
+</section>
+<div id="anc-drag" class="anc-drag" hidden></div>
+
+<!-- 祖先堂：第一次來 -->
+<div id="anc-start" class="panel modal" hidden role="dialog" aria-modal="true" aria-labelledby="anc-start-title">
+  <h2 id="anc-start-title" data-i18n="anc.title">祖先堂</h2>
+  <p class="panel-tip" data-i18n="anc.startTip">為離開的家人設一個靈位。忌日、清明會提醒你；家人憑邀請連結進來，一起祭拜。</p>
+  <form id="anc-start-form" class="lamp-form">
+    <label for="anc-hall-name" data-i18n="anc.hallName">家堂的名字</label>
+    <input id="anc-hall-name" maxlength="12" autocomplete="off" placeholder="王家">
+    <button type="submit" class="btn" data-i18n="anc.create">建立家堂</button>
+  </form>
+  <p class="fineprint" data-i18n="anc.private">家堂只有你邀請的家人看得到，不會出現在大殿。</p>
+  <p class="fineprint" data-i18n="anc.joinHint">家人已經建好了？請他把邀請連結傳給你。</p>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
+<!-- 靈位：新增 / 編輯 -->
+<div id="anc-form-panel" class="panel modal" hidden role="dialog" aria-modal="true" aria-labelledby="anc-form-title">
+  <h2 id="anc-form-title" data-i18n="anc.add">設靈位</h2>
+  <form id="anc-form" class="lamp-form">
+    <label for="anc-f-name" data-i18n="anc.fName">名字</label>
+    <input id="anc-f-name" maxlength="12" autocomplete="off" required>
+    <label for="anc-f-rel" data-i18n="anc.fRel">稱謂（選填）</label>
+    <input id="anc-f-rel" maxlength="8" autocomplete="off" list="anc-rels">
+    <datalist id="anc-rels"></datalist>
+    <fieldset class="alm-ymd">
+      <legend data-i18n="anc.fDied">忌日</legend>
+      <input id="anc-f-dy" type="number" inputmode="numeric" min="1850" required aria-label="年">
+      <select id="anc-f-dm" aria-label="月"></select>
+      <select id="anc-f-dd" aria-label="日"></select>
+    </fieldset>
+    <label class="check"><input type="checkbox" id="anc-f-lunar"> <span data-i18n="anc.fLunar">按農曆過忌日</span></label>
+    <label class="check" id="anc-f-leap-row" hidden><input type="checkbox" id="anc-f-leap"> <span data-i18n="alm.leapMonth">閏月</span></label>
+    <label for="anc-f-born" data-i18n="anc.fBorn">出生（選填，年份或完整日期）</label>
+    <input id="anc-f-born" maxlength="10" autocomplete="off" placeholder="1932 / 1932-11-20">
+    <label for="anc-f-epi" data-i18n="anc.fEpi">一句話（選填）</label>
+    <input id="anc-f-epi" maxlength="30" autocomplete="off">
+    <label data-i18n="anc.fPhoto">照片（選填）</label>
+    <div class="anc-photo-row">
+      <img id="anc-f-photo-img" alt="" hidden>
+      <label class="btn-ghost small anc-file"><input id="anc-f-photo" type="file" accept="image/*"><span data-i18n="anc.fPick">選一張照片</span></label>
+      <button id="anc-f-photo-clear" type="button" class="btn-ghost small" hidden data-i18n="anc.fNoPhoto">不用照片</button>
+    </div>
+    <p id="anc-f-err" class="support" hidden></p>
+    <button type="submit" class="btn" data-i18n="anc.save">安放</button>
+    <button id="anc-f-remove" type="button" class="btn-ghost small" hidden data-i18n="anc.remove">撤下這個靈位</button>
+  </form>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
+<!-- 家人與邀請 -->
+<div id="anc-fam" class="panel modal" hidden role="dialog" aria-modal="true" aria-labelledby="anc-fam-title">
+  <h2 id="anc-fam-title" data-i18n="anc.family">家人</h2>
+  <form id="anc-rename" class="anc-rename" hidden>
+    <input id="anc-rename-input" maxlength="12" autocomplete="off" aria-label="家堂的名字">
+    <button type="submit" class="btn-ghost small" data-i18n="anc.rename">改名</button>
+  </form>
+  <ul id="anc-members" class="anc-members"></ul>
+  <section class="anc-invite">
+    <p class="panel-tip" data-i18n="anc.inviteTip">把這個連結傳給家人，打開就能一起祭拜：</p>
+    <input id="anc-invite-link" readonly aria-label="邀請連結">
+    <div class="row">
+      <button id="anc-invite-copy" type="button" class="btn" data-i18n="anc.copyLink">複製連結</button>
+      <button id="anc-invite-share" type="button" class="btn-ghost small" hidden data-i18n="anc.share">分享</button>
+      <button id="anc-invite-reset" type="button" class="btn-ghost small" hidden data-i18n="anc.resetLink">換一個連結</button>
+    </div>
+  </section>
+  <section id="anc-halls-sec" hidden>
+    <h3 data-i18n="anc.halls">我的家堂</h3>
+    <ul id="anc-halls" class="anc-halls"></ul>
+  </section>
+  <button id="anc-own" type="button" class="btn-ghost small" hidden data-i18n="anc.ownHall">建立自己的家堂</button>
+  <button id="anc-quit" type="button" class="btn-ghost small" hidden data-i18n="anc.quit">離開這個家堂</button>
   <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
 </div>
 

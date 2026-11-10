@@ -10,6 +10,7 @@ import { OfferingService } from './domain/offerings.js';
 import { LampService, LAMP_KINDS } from './domain/lamps.js';
 import { DailyLines } from './domain/almanac.js';
 import { CopyTexts, CopyService, ZenRooms } from './domain/copying.js';
+import { AncestorService } from './domain/ancestors.js';
 import { record } from './domain/practice.js';
 import { effectiveMode, actionAllowed } from './domain/compliance.js';
 import { Lobby } from './realtime/lobby.js';
@@ -27,6 +28,7 @@ export function createApp(overrides = {}) {
   ctx.offerings = new OfferingService({ store, tz: config.regionPolicy.tz, hotline: config.regionPolicy.hotline });
   ctx.lamps = new LampService({ store, hotline: config.regionPolicy.hotline });
   ctx.lampKinds = LAMP_KINDS;
+  ctx.ancestors = new AncestorService({ store, tz: config.regionPolicy.tz, hotline: config.regionPolicy.hotline });
   ctx.daily = new DailyLines(config.contentDir);
   ctx.modeOf = (temple, scene) => effectiveMode({ regionPolicy: config.regionPolicy, scene, temple });
   ctx.actionAllowed = actionAllowed;

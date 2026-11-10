@@ -2,8 +2,8 @@
 // 不是法律意见；规则集中在这里，方便各市场律师审阅后调整。
 
 /** Actions that are religious ritual. In 'cultural' mode they are hidden and rejected server-side. */
-export const RITUAL_ACTIONS = new Set(['incense', 'fortune', 'muyu', 'bead', 'bow', 'prostrate']);
-export const CULTURAL_ACTIONS = new Set(['walk', 'sit', 'meditate', 'greet', 'wish', 'rejoice', 'lamp']);
+export const RITUAL_ACTIONS = new Set(['incense', 'fortune', 'muyu', 'bead', 'bow', 'prostrate', 'burn']);
+export const CULTURAL_ACTIONS = new Set(['walk', 'sit', 'meditate', 'greet', 'wish', 'rejoice', 'lamp', 'memorial']);
 
 export function effectiveMode({ regionPolicy, scene, temple }) {
   if (!regionPolicy.ritualsAllowed) return 'cultural';

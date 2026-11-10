@@ -218,6 +218,53 @@ export function createHandler(ctx) {
   route('POST', '/api/zen/beat', (req) => { const u = users.require(token(req)); return { ...ctx.zen.beat(u), me: users.publicView(u) }; });
   route('POST', '/api/zen/end', (req) => { const u = users.require(token(req)); return { ...ctx.zen.end(u), me: users.publicView(u) }; });
 
+  // ---- 祖先堂（2.3、3.2）：私人家堂，只有家人看得到；燒紙只在儀式模式（COMPLIANCE.md）----
+  const modeAt = (url) => { const t = temple(url.searchParams.get('t') || 'main'); return ctx.modeOf(t, scenes.get(t.sceneId)); };
+  const anc = ctx.ancestors;
+  const hallOut = (u, id, url) => anc.view(u, id, modeAt(url));
+  const tabletOut = (u, hallId, tb) => anc.tabletView(tb, u, anc.hall(u, hallId));
+  route('GET', '/api/ancestors', (req, p, url) => {
+    const u = users.require(token(req));
+    return { mode: modeAt(url), halls: anc.list(u), reminders: anc.reminders(u) };
+  });
+  route('POST', '/api/ancestors', async (req, p, url) => {
+    const u = users.require(token(req));
+    return hallOut(u, anc.create(u, await readJson(req)).id, url);
+  });
+  route('GET', '/api/ancestors/:id', (req, p, url) => hallOut(users.require(token(req)), p.id, url));
+  route('POST', '/api/ancestors/:id/name', async (req, p) => anc.rename(users.require(token(req)), p.id, (await readJson(req)).name));
+  route('POST', '/api/ancestors/:id/invite', (req, p) => anc.resetInvite(users.require(token(req)), p.id));
+  route('POST', '/api/ancestors/:id/leave', async (req, p) => anc.removeMember(users.require(token(req)), p.id, (await readJson(req)).memberId));
+  route('GET', '/api/invites/:code', (req, p) => anc.invitePreview(p.code));
+  route('POST', '/api/invites/:code/join', (req, p) => anc.join(users.require(token(req)), p.code));
+  route('POST', '/api/ancestors/:id/tablets', async (req, p) => {
+    const u = users.require(token(req));
+    return tabletOut(u, p.id, anc.addTablet(u, p.id, await readJson(req, 128 * 1024)));
+  });
+  route('POST', '/api/ancestors/:id/tablets/:tid', async (req, p) => {
+    const u = users.require(token(req));
+    return tabletOut(u, p.id, anc.editTablet(u, p.id, p.tid, await readJson(req, 128 * 1024)));
+  });
+  route('POST', '/api/ancestors/:id/tablets/:tid/remove', (req, p) => anc.removeTablet(users.require(token(req)), p.id, p.tid));
+  route('GET', '/api/ancestors/:id/tablets/:tid/photo', (req, p) => anc.photo(users.require(token(req)), p.id, p.tid));
+  route('POST', '/api/ancestors/:id/tablets/:tid/offer', async (req, p, url) => {
+    const u = users.require(token(req));
+    const out = anc.offer(u, p.id, p.tid, (await readJson(req)).kind, modeAt(url));
+    const merit = out.first ? ctx.creditMerit(u, 'memorial') : { counted: false };
+    return { tablet: tabletOut(u, p.id, out.tablet), already: out.already, merit: merit.counted ? merit.merit : 0, me: users.publicView(u) };
+  });
+  route('POST', '/api/ancestors/:id/tablets/:tid/note', async (req, p) => {
+    const u = users.require(token(req));
+    return anc.note(u, p.id, p.tid, (await readJson(req)).text);
+  });
+  route('POST', '/api/ancestors/:id/tablets/:tid/notes/:nid/remove', (req, p) => anc.removeNote(users.require(token(req)), p.id, p.tid, p.nid));
+  route('POST', '/api/ancestors/:id/tablets/:tid/burn', async (req, p, url) => {
+    const u = users.require(token(req));
+    const out = anc.burn(u, p.id, p.tid, await readJson(req), modeAt(url));
+    ctx.users.save(u); // rate bucket lives on the user
+    return { counted: out.counted, burned: tabletOut(u, p.id, out.tablet).today.burned };
+  });
+
   route('POST', '/api/temples/apply', async (req) => templesSvc.apply(await readJson(req)));
 
   // ---- admin (平台审核) ----

@@ -19,7 +19,7 @@ export function hint(text, ms = 0) {
   if (ms) hintTimer = setTimeout(() => { el.hidden = true; }, ms);
 }
 
-const panels = ['incense-panel', 'fortune-panel', 'count-panel', 'wish-panel', 'lamp-panel', 'alm-panel', 'me-panel', 'sit-choice', 'copy-panel'];
+const panels = ['incense-panel', 'fortune-panel', 'count-panel', 'wish-panel', 'lamp-panel', 'alm-panel', 'me-panel', 'sit-choice', 'copy-panel', 'anc-start', 'anc-form-panel', 'anc-fam'];
 let onCloseCb = new Map();
 export function openPanel(id, onClose) {
   for (const p of panels) if (p !== id && !$(p).hidden) closePanel(p);

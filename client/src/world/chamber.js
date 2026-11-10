@@ -10,7 +10,7 @@ import { Nisheng } from '../avatar/nisheng.js';
 const W = 4.6, D = 4.6, H = 3.1;           // room size (m)
 const WIN = { y: 1.5, r: 0.82 };            // 圓窗 on the back wall (z = -D/2)
 
-function tex(w, h, draw, { repeat = false } = {}) {
+export function tex(w, h, draw, { repeat = false } = {}) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c);
@@ -20,10 +20,10 @@ function tex(w, h, draw, { repeat = false } = {}) {
   return t;
 }
 
-function rng(seed) { let s = seed >>> 0; return () => ((s = Math.imul(s ^ (s >>> 15), 2246822519) + 0x9e3779b9 >>> 0) / 4294967296); }
+export function rng(seed) { let s = seed >>> 0; return () => ((s = Math.imul(s ^ (s >>> 15), 2246822519) + 0x9e3779b9 >>> 0) / 4294967296); }
 
 /** Lime plaster, slightly mottled. */
-function plaster() {
+export function plaster() {
   return tex(256, 256, (g, w, h) => {
     g.fillStyle = '#d9ccb4'; g.fillRect(0, 0, w, h);
     const R = rng(11);
@@ -91,7 +91,7 @@ function outsideLayer() {
   });
 }
 
-function lathe(points, segs = 20) { return new THREE.LatheGeometry(points.map(([r, y]) => new THREE.Vector2(r, y)), segs); }
+export function lathe(points, segs = 20) { return new THREE.LatheGeometry(points.map(([r, y]) => new THREE.Vector2(r, y)), segs); }
 
 /**
  * @param opts.look   the visitor's 泥生 look

@@ -5,12 +5,15 @@ import * as audio from './audio.js';
 import { $, toast, hint, bindPanelClose, updateMe, renderMe, setPresence, openPanel, closePanel } from './ui.js';
 import { createAlmanac } from './almanac.js';
 import { createZen } from './zen.js';
+import { createAncestors, reminderText } from './ancestors.js';
 
 const params = new URLSearchParams(location.search);
 let slug = (location.pathname.match(/^\/t\/([a-z0-9-]+)/) || [])[1] || params.get('t') || 'main';
 // 4.3 祈福卡: /c/<id> shows the card first, then enters the temple where that lamp hangs.
 const cardId = (location.pathname.match(/^\/c\/([A-Za-z0-9_-]+)/) || [])[1] || null;
 let card = null;
+// 祖先堂邀請: /f/<code> shows who invited you, then joins that family hall once you are in
+const inviteCode = (location.pathname.match(/^\/f\/([A-Za-z0-9_-]+)/) || [])[1] || null;
 
 // Heavy 3D modules start downloading right away, while the intro text is on screen.
 const three = Promise.all([import('three'), import('./world/scene.js')]).catch((e) => { console.error(e); return null; });
@@ -19,6 +22,24 @@ let config = { locale: 'zh-Hant', ritualsAllowed: true };
 const configured = api('GET', '/api/config').then((c) => { config = c; setLocale(c.locale); applyI18n(); }).catch(() => applyI18n());
 bindPanelClose();
 if (cardId) configured.then(showCard); // after applyI18n, which would reset the button text
+if (inviteCode) configured.then(showInvite);
+
+async function showInvite() {
+  try {
+    const inv = await api('GET', `/api/invites/${inviteCode}`);
+    $('card-title').textContent = inv.name ? t('anc.titleOf', inv.name) : t('anc.title');
+    $('card-kind').textContent = t('anc.inviteCard', inv.ownerName);
+    $('card-wish').hidden = true;
+    $('card-from').textContent = t('anc.inviteMeta', inv.members, inv.tablets);
+    $('card-until').textContent = t('anc.private');
+    $('card-view').classList.add('invite');
+    $('card-view').hidden = false;
+    document.querySelector('.intro-line').hidden = true;
+    $('enter').textContent = t('anc.inviteEnter');
+  } catch {
+    $('intro-status').textContent = t('anc.inviteGone');
+  }
+}
 
 async function showCard() {
   try {
@@ -106,13 +127,26 @@ function start(game, session, info) {
   // 靜坐: sit with everyone in the hall, or alone in the 禪房 (2.2 同修 / 靜修)
   const zen = createZen(game, { mode: info.mode, slug });
   const sitChoice = () => {
-    if (r.sitting) return;
+    if (r.sitting || anc.active) return;
     openPanel('sit-choice');
     $('sit-hall').onclick = () => { closePanel('sit-choice'); r.sit(); };
     $('sit-zen').onclick = () => { closePanel('sit-choice'); zen.enter(); };
   };
+  // 祖先堂: private family hall; reminders for 忌日 / 冥誕 / 清明 show on arrival (4.1)
+  const anc = createAncestors(game, { mode: info.mode, slug });
+  anc.init().then((rem) => {
+    const near = rem.filter((e) => e.inDays <= 3);
+    if (!near.length) return;
+    document.querySelector('[data-act="ancestor"]').classList.add('dot');
+    setTimeout(() => toast(reminderText(near[0]), { gold: near[0].inDays === 0 }), 4200);
+  });
+  if (inviteCode) {
+    history.replaceState(null, '', '/');
+    setTimeout(() => anc.joinByInvite(inviteCode), 2800);
+  }
   const handlers = {
     gassho: r.gassho, bow: r.bow, incense: r.incense, fortune: r.fortune, muyu: r.muyu, beads: r.beads, sit: sitChoice, wish: r.wish, lamp: r.lamp,
+    ancestor: () => { if (zen.active) return; document.querySelector('[data-act="ancestor"]').classList.remove('dot'); anc.enter(); },
   };
   for (const b of document.querySelectorAll('[data-act]')) {
     b.addEventListener('click', () => {

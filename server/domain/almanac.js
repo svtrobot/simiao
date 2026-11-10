@@ -42,7 +42,7 @@ function localMidnight(y, m, d, tz) {
  * Solar term index 0..23 counted from 春分 (λ = 0°) if one begins during this local day, else null.
  * Index k ↔ λ = 15k: 0 春分, 3 立夏, 6 夏至, 9 立秋, 12 秋分, 15 立冬, 18 冬至, 21 立春.
  */
-function termOn(y, m, d, tz) {
+export function termOn(y, m, d, tz) {
   const a = sunLongitude(localMidnight(y, m, d, tz)), b = sunLongitude(localMidnight(y, m, d, tz) + DAY);
   const ka = Math.floor(a / 15), kb = Math.floor(b / 15);
   return ka === kb ? null : kb % 24;

@@ -13,7 +13,7 @@
 
 ```bash
 npm start            # http://localhost:8787 （Node ≥ 20，零 npm 依赖）
-npm test             # 41 项测试，必须全部通过再提交
+npm test             # 45 项测试，必须全部通过再提交
 npm run loadtest     # 压测
 docker compose up -d --build   # 容器方式
 ```
@@ -25,7 +25,7 @@ docker compose up -d --build   # 容器方式
 - `client/` 浏览器端，原生 ES Modules + three.js 0.170（import map 指向 `/vendor/three/`，未自托管时服务器 302 到 jsDelivr），**没有构建步骤**
   - `src/world/` 场景包加载、程序化大殿 `temple.js`（佛像与胁侍 `statue.js`、殿内陈设 `interior.js`、远山松林院墙放生池 `landscape.js`）、天色季节 `env.js`、碰撞 `collide.js`、烟与落花 `fx.js`
   - `src/avatar/nisheng.js` 泥生（形体、五阶段釉色着色器、IK 动作）
-  - `src/rituals.js` 各仪式交互（含点灯与祈福卡）；黄历面板 `src/almanac.js`（历法计算在服务端 `server/domain/almanac.js`，零依赖：农历用 Intl chinese 历，节气用太阳黄经）；灯墙 `src/world/lampwall.js`；禅房 `src/zen.js` + `src/world/chamber.js`（单人场景，离开房间连接，分钟走 `/api/zen` 心跳）；抄经描红 `src/copy.js`（底本 `content/copy/texts.json`，服务端 `server/domain/copying.js` 限速计功德）；`src/net.js` 房间客户端（插值）
+  - `src/rituals.js` 各仪式交互（含点灯与祈福卡）；黄历面板 `src/almanac.js`（历法计算在服务端 `server/domain/almanac.js`，零依赖：农历用 Intl chinese 历，节气用太阳黄经）；灯墙 `src/world/lampwall.js`；禅房 `src/zen.js` + `src/world/chamber.js`（单人场景，离开房间连接，分钟走 `/api/zen` 心跳）；抄经描红 `src/copy.js`（底本 `content/copy/texts.json`，服务端 `server/domain/copying.js` 限速计功德）；祖先堂 `src/ancestors.js` + `src/world/ancestral.js`（私人家堂，离开房间连接；服务端 `server/domain/ancestors.js`：家堂、灵位、忌日提醒、献供、寄语、烧纸限速）；`src/net.js` 房间客户端（插值）
 - `admin/` 平台后台 · `scenes/` 场景包 · `content/` 签诗 · `docs/` 文档 · `test/` · `tools/`
 
 ## 必须遵守的规则（来自设计文档，不要改）
@@ -43,7 +43,7 @@ docker compose up -d --build   # 容器方式
 
 - 3D 画面已在电脑浏览器（含手机尺寸模拟）验证可正常渲染；**还没在真实手机上验证过**。部署后第一件事：中低端手机看一遍，修画面问题。
 - 数据是单机 JSON 文件，只能单实例运行；多实例前必须完成 PostgreSQL + Redis（`docs/ARCHITECTURE.md` 有逐项替换表）。
-- 账号只有游客令牌；支付、祖先堂、点灯、黄历、烧纸在 P1。
+- 账号只有游客令牌；支付在 P1。祖先堂的忌日提醒目前只在进入寺院时显示，没有推送；灵位照片存在 JSON 存储里（单张 ≤ 90 KB），上 PostgreSQL 时改对象存储。
 - 100 尊泥生约 1,400 draw calls，P1 改 GPU 实例化（目标 ≤ 150）。
 - 签诗是原创示例 12 签，需文化顾问审阅。
 
