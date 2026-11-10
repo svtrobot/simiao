@@ -1,9 +1,11 @@
 const KEY = 'simiao.token';
 
+export function clearToken() { try { localStorage.removeItem(KEY); } catch { /* fine */ } }
+
 export function getToken() {
   try { return localStorage.getItem(KEY); } catch { return null; }
 }
-function setToken(t) {
+export function setToken(t) {
   try { localStorage.setItem(KEY, t); } catch { /* private mode: session-only */ }
 }
 

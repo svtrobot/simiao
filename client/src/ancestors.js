@@ -458,7 +458,7 @@ export function createAncestors(game, { mode, slug }) {
       closePanel('anc-form-panel');
       await load(hall.id); // order + reminders come from the server
       room.setTablets(hall.tablets);
-      if (!editing) { toast(t('anc.placed', who(tb)), { gold: true }); audio.bell(0.16); }
+      if (!editing) { toast(t('anc.placed', who(tb)), { gold: true }); audio.bell(0.16); window.dispatchEvent(new Event('simiao:keep')); }
       selectTablet(tb.id);
     } catch (err) {
       $('anc-f-err').hidden = false;

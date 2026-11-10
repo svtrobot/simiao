@@ -6,6 +6,7 @@ import { $, toast, hint, bindPanelClose, updateMe, renderMe, setPresence, openPa
 import { createAlmanac } from './almanac.js';
 import { createZen } from './zen.js';
 import { createAncestors, reminderText } from './ancestors.js';
+import { createAccount } from './account.js';
 
 const params = new URLSearchParams(location.search);
 let slug = (location.pathname.match(/^\/t\/([a-z0-9-]+)/) || [])[1] || params.get('t') || 'main';
@@ -21,6 +22,8 @@ const three = Promise.all([import('three'), import('./world/scene.js')]).catch((
 let config = { locale: 'zh-Hant', ritualsAllowed: true };
 const configured = api('GET', '/api/config').then((c) => { config = c; setLocale(c.locale); applyI18n(); }).catch(() => applyI18n());
 bindPanelClose();
+// 保存修行: passkey / recovery code; the entrance screen offers 「找回我的修行」 before a session starts
+const account = createAccount();
 if (cardId) configured.then(showCard); // after applyI18n, which would reset the button text
 if (inviteCode) configured.then(showInvite);
 
@@ -155,6 +158,6 @@ function start(game, session, info) {
     });
   }
   $('me-chip').addEventListener('click', async () => {
-    try { const me = await api('GET', '/api/me'); renderMe(me); openPanel('me-panel'); } catch { /* ignore */ }
+    try { const me = await api('GET', '/api/me'); renderMe(me); await account.show(); openPanel('me-panel'); } catch { /* ignore */ }
   });
 }

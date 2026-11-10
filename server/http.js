@@ -92,6 +92,19 @@ export function createHandler(ctx) {
     return { token: s.token, user: users.publicView(s.user), returned: s.returned };
   });
 
+  // ---- 保存修行：通行密鑰與恢復碼（2.1；docs/ACCOUNTS.md）----
+  const acc = ctx.accounts;
+  const ip = (req) => req.socket.remoteAddress || '';
+  route('GET', '/api/account', (req) => acc.status(users.require(token(req))));
+  route('POST', '/api/account/recovery', (req) => acc.createRecovery(users.require(token(req))));
+  route('POST', '/api/account/restore', async (req) => acc.restore((await readJson(req)).code, ip(req)));
+  route('POST', '/api/account/passkey/options', (req) => acc.registerOptions(users.require(token(req)), req));
+  route('POST', '/api/account/passkey', async (req) => acc.register(users.require(token(req)), await readJson(req, 32 * 1024), req));
+  route('POST', '/api/account/passkey/:id/remove', (req, p) => acc.removePasskey(users.require(token(req)), p.id));
+  route('POST', '/api/account/login/options', (req) => acc.loginOptions(req));
+  route('POST', '/api/account/login', async (req) => { const r = await readJson(req, 32 * 1024); acc.throttle(ip(req), Date.now()); return acc.login(r, req); });
+  route('POST', '/api/account/signout', (req) => { users.require(token(req)); users.revokeToken(token(req)); return { ok: true }; });
+
   route('POST', '/api/me/mood', async (req) => {
     const u = users.require(token(req));
     users.setMood(u, (await readJson(req)).mood);

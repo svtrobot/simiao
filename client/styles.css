@@ -372,6 +372,23 @@ body:has(.zen.dim) .topbar { opacity: 0; transition: opacity 2s ease; }
 .anc-file { position: relative; overflow: hidden; cursor: pointer; display: inline-block; }
 .anc-file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 
+/* ---- 保存修行 ---- */
+.link-btn { margin-top: 18px; background: transparent; border: 0; color: var(--muted); font-size: 13px; letter-spacing: 0.08em; text-decoration: underline; text-underline-offset: 4px; opacity: 0; animation: rise 1.6s 3s ease forwards; min-height: 40px; }
+.link-btn:hover { color: var(--paper); }
+.acc { border-top: 1px solid var(--glass-line); margin-top: 14px; padding-top: 12px; }
+.acc h3 { font-weight: 500; font-size: 14px; color: var(--paper-dim); letter-spacing: 0.2em; margin: 0 0 6px; }
+.acc #acc-status { line-height: 1.7; }
+.acc #acc-status.ok { color: var(--gold); }
+.acc-keys { list-style: none; padding: 0; margin: 4px 0 10px; display: grid; gap: 4px; text-align: left; font-size: 13px; color: var(--paper-dim); }
+.acc-keys li { display: flex; align-items: center; gap: 8px; }
+.acc-keys li .btn-ghost.small { margin: 0 0 0 auto; padding: 4px 12px; }
+.acc .row { flex-wrap: wrap; }
+.acc .row .btn-ghost.small { margin-top: 0; }
+.acc-code { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 22px; letter-spacing: 0.12em; color: var(--gold); background: rgba(210, 173, 94, 0.08); border: 1px dashed rgba(210, 173, 94, 0.5); border-radius: 12px; padding: 14px 10px; user-select: all; word-break: break-all; }
+.acc-restore { z-index: 35; }
+.acc-restore-form { margin-top: 16px; }
+.acc-restore-form input { text-transform: uppercase; letter-spacing: 0.1em; font-family: ui-monospace, Menlo, Consolas, monospace; }
+
 @media (max-width: 560px) {
   .presence { display: none; }
   /* the top bar must never wrap: temple name and the merit chip each stay on one line */

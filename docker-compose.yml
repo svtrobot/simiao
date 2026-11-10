@@ -13,6 +13,7 @@ services:
       REGION: tw                # tw | overseas | cn
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}   # 在 .env 里设置长随机串以开启 /admin
       ROOM_CAPACITY: 100
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-}  # 线上填 https://你的域名（通行密钥绑定此域名）
     volumes:
       - simiao-data:/data
 volumes:

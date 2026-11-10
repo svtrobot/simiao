@@ -14,7 +14,7 @@
 ```bash
 npm start                 # http://localhost:8787
 ADMIN_TOKEN=换成长随机串 npm start   # 同时开启平台后台 /admin
-npm test                  # 45 项服务端测试（房间、分线、功德、签、点灯、黄历、禅房与抄经、祖先堂与烧纸、合规、审核）
+npm test                  # 48 项服务端测试（房间、分线、功德、签、点灯、黄历、禅房与抄经、祖先堂与烧纸、账号、合规、审核）
 npm run loadtest          # 压测：默认 200 人、20 秒
 npm run vendor:three      # 把 three.js 下载到 client/vendor（自托管，大陆必须）
 docker compose up -d --build   # 容器方式（先把 .env.example 复制为 .env）
@@ -77,7 +77,7 @@ tools/             压测、three.js 自托管
 
 - 场景与人物均为程序化生成，用于验证玩法与性能；写实美术、实地录音按设计文档第十一章另行制作后通过场景包替换。
 - 数据存于本机 JSON 文件，单进程。多进程 / 多机需要 P1 的 PostgreSQL + Redis（见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)）。
-- 账号仅为游客令牌；支付、会员、祖先堂、点灯、黄历在 P1。
+- 账号：游客即可进入；可用通行密钥或恢复码保存（docs/ACCOUNTS.md）。手机号 / 社交登录、支付、会员在 P1。
 - 泥生已改为 GPU 实例化绘制：96 人同殿整帧约 148 draw calls（原 1,694）；还需在中低端真机上确认帧率。
 
 ## 文档

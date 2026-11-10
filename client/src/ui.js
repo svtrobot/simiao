@@ -19,7 +19,7 @@ export function hint(text, ms = 0) {
   if (ms) hintTimer = setTimeout(() => { el.hidden = true; }, ms);
 }
 
-const panels = ['incense-panel', 'fortune-panel', 'count-panel', 'wish-panel', 'lamp-panel', 'alm-panel', 'me-panel', 'sit-choice', 'copy-panel', 'anc-start', 'anc-form-panel', 'anc-fam'];
+const panels = ['incense-panel', 'fortune-panel', 'count-panel', 'wish-panel', 'lamp-panel', 'alm-panel', 'me-panel', 'sit-choice', 'copy-panel', 'anc-start', 'anc-form-panel', 'anc-fam', 'acc-code', 'acc-restore', 'acc-nudge'];
 let onCloseCb = new Map();
 export function openPanel(id, onClose) {
   for (const p of panels) if (p !== id && !$(p).hidden) closePanel(p);
@@ -44,6 +44,7 @@ export function bindPanelClose() {
 }
 
 export function updateMe(me) {
+  window.dispatchEvent(new CustomEvent('simiao:me', { detail: me }));
   $('me-name').textContent = me.name;
   $('me-rank').textContent = t(`rank.${me.rank}`);
   $('me-merit').textContent = me.merit;

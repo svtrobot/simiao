@@ -13,7 +13,7 @@
 
 ```bash
 npm start            # http://localhost:8787 （Node ≥ 20，零 npm 依赖）
-npm test             # 45 项测试，必须全部通过再提交
+npm test             # 48 项测试，必须全部通过再提交
 npm run loadtest     # 压测
 docker compose up -d --build   # 容器方式
 ```
@@ -43,7 +43,7 @@ docker compose up -d --build   # 容器方式
 
 - 3D 画面已在电脑浏览器（含手机尺寸模拟）验证可正常渲染；**还没在真实手机上验证过**。部署后第一件事：中低端手机看一遍，修画面问题。
 - 数据是单机 JSON 文件，只能单实例运行；多实例前必须完成 PostgreSQL + Redis（`docs/ARCHITECTURE.md` 有逐项替换表）。
-- 账号只有游客令牌；支付在 P1。祖先堂的忌日提醒目前只在进入寺院时显示，没有推送；灵位照片存在 JSON 存储里（单张 ≤ 90 KB），上 PostgreSQL 时改对象存储。
+- 账号：游客令牌 + 「保存修行」（通行密钥 / 恢复码，`server/domain/accounts.js` + `client/src/account.js`，见 `docs/ACCOUNTS.md`）；不收集电话、email。手机号 / Google / Apple / LINE 登录与支付要先拿到各平台凭证。线上必须 HTTPS 并设置 `PUBLIC_ORIGIN`，否则通行密钥不可用。祖先堂的忌日提醒目前只在进入寺院时显示，没有推送；灵位照片存在 JSON 存储里（单张 ≤ 90 KB），上 PostgreSQL 时改对象存储。
 - 他人的泥生是只跑 IK 的骨架（rig），由 `client/src/avatar/crowd.js` 按「部件 × 釉类 × 远近」合并成 GPU 实例化批次绘制，釉色 / 冰裂 / 金缮走实例属性；名牌合成一张图集一次画完。96 人同殿实测整帧 1,694 → 148 draw calls（大殿本身约 100），三角面 128 万 → 55 万（12 米外用半细分模型）。自己的泥生仍是完整网格与阴影。改泥生的部件或材质时，`nisheng.js` 的 slot 名与 `crowd.js` 的材质表要一起改。
 - 签诗是原创示例 12 签，需文化顾问审阅。
 

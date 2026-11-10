@@ -45,6 +45,7 @@
       </div>
     </div>
     <p id="intro-status" class="intro-status"></p>
+    <button id="restore-link" class="link-btn" type="button" data-i18n="acc.restoreLink">換了手機？找回我的修行</button>
   </div>
 </section>
 
@@ -450,7 +451,54 @@
   <h2 id="me-title" data-i18n="me.title">我的修行</h2>
   <dl id="me-stats" class="me-stats"></dl>
   <p class="fineprint" data-i18n="me.note">功德來自靜坐、禮拜與善念，買不到，也不必和誰比。</p>
+  <section id="acc" class="acc">
+    <h3 data-i18n="acc.title">保存修行</h3>
+    <p id="acc-status" class="panel-tip"></p>
+    <ul id="acc-keys" class="acc-keys"></ul>
+    <div class="row">
+      <button id="acc-passkey" type="button" class="btn" data-i18n="acc.passkey">用通行密鑰保存</button>
+      <button id="acc-recovery" type="button" class="btn-ghost small" data-i18n="acc.recovery">產生恢復碼</button>
+    </div>
+    <p class="fineprint" data-i18n="acc.how">不需要電話或 email。通行密鑰用手機的指紋或臉部解鎖，會跟著你的手機帳號同步；恢復碼請自己抄下來收好。</p>
+    <div class="row">
+      <button id="acc-switch" type="button" class="btn-ghost small" data-i18n="acc.switch">登入其他帳號</button>
+      <button id="acc-signout" type="button" class="btn-ghost small" hidden data-i18n="acc.signout">在這台裝置登出</button>
+    </div>
+  </section>
   <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
+<!-- 保存修行：恢復碼（只顯示一次） -->
+<div id="acc-code" class="panel modal" hidden role="dialog" aria-modal="true" aria-labelledby="acc-code-title">
+  <h2 id="acc-code-title" data-i18n="acc.codeTitle">你的恢復碼</h2>
+  <p class="panel-tip" data-i18n="acc.codeTip">請抄下來或截圖收好。換手機時輸入它，就能找回你的修行。這組碼只會出現這一次。</p>
+  <p id="acc-code-text" class="acc-code"></p>
+  <button id="acc-code-copy" type="button" class="btn" data-i18n="acc.copy">複製</button>
+  <p class="fineprint" data-i18n="acc.codeWarn">產生新的恢復碼後，舊的就不能用了。不要給任何人看——拿到它的人可以進入你的帳號。</p>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="acc.kept">我收好了</button>
+</div>
+
+<!-- 換了裝置：用通行密鑰或恢復碼找回 -->
+<div id="acc-restore" class="panel modal acc-restore" hidden role="dialog" aria-modal="true" aria-labelledby="acc-restore-title">
+  <h2 id="acc-restore-title" data-i18n="acc.restoreTitle">找回我的修行</h2>
+  <button id="acc-restore-passkey" type="button" class="btn" data-i18n="acc.signinPasskey">用通行密鑰登入</button>
+  <form id="acc-restore-form" class="lamp-form acc-restore-form">
+    <label for="acc-restore-code" data-i18n="acc.orCode">或輸入恢復碼</label>
+    <input id="acc-restore-code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="24">
+    <button type="submit" class="btn-ghost small" data-i18n="acc.restore">找回</button>
+  </form>
+  <p id="acc-restore-msg" class="support" hidden></p>
+  <p class="fineprint" data-i18n="acc.noMerge">這台裝置目前的訪客進度會留在原處，不會合併過去。</p>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
+<!-- 第一次有東西值得留下時，輕輕提一次（2.1） -->
+<div id="acc-nudge" class="panel bottom-panel" hidden>
+  <p id="acc-nudge-text" class="panel-tip"></p>
+  <div class="row">
+    <button id="acc-nudge-yes" type="button" class="btn" data-i18n="acc.nudgeYes">保存</button>
+    <button type="button" class="btn-ghost small" data-close data-i18n="acc.later">以後再說</button>
+  </div>
 </div>
 
 <noscript>雲上寺需要啟用 JavaScript。</noscript>

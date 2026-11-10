@@ -32,6 +32,16 @@ export class UserService {
     return { token: fresh, user, returned: { repaired: false, gapDays: 0 } };
   }
 
+  /** Another device signed in to this account (passkey / recovery code): a new token, old ones stay valid. */
+  issueToken(userId, now = Date.now()) {
+    const fresh = newId(24);
+    this.store.put('tokens', tokenKey(fresh), { userId, createdAt: now });
+    return fresh;
+  }
+
+  /** Sign this device out. */
+  revokeToken(token) { if (token) this.store.remove('tokens', tokenKey(token)); }
+
   byToken(token) {
     if (!token) return null;
     const ref = this.store.get('tokens', tokenKey(token));

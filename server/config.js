@@ -31,6 +31,8 @@ export const config = {
   scenesDir: path.join(ROOT, 'scenes'),
   contentDir: path.join(ROOT, 'content'),
   adminToken: env.ADMIN_TOKEN || '',
+  // https://your.domain — passkeys are bound to this origin. Unset: the request's own Host is used.
+  publicOrigin: (env.PUBLIC_ORIGIN || '').replace(/\/$/, ''),
   room: {
     capacity: Number(env.ROOM_CAPACITY || 100),
     tickHz: Number(env.TICK_HZ || 10),
