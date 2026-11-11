@@ -8,6 +8,7 @@ import { createZen } from './zen.js';
 import { createAncestors, reminderText } from './ancestors.js';
 import { createAccount } from './account.js';
 import { createReminders } from './remind.js';
+import { createShop } from './shop.js';
 
 const params = new URLSearchParams(location.search);
 let slug = (location.pathname.match(/^\/t\/([a-z0-9-]+)/) || [])[1] || params.get('t') || 'main';
@@ -161,6 +162,11 @@ function start(game, session, info) {
     setTimeout(() => hint(t('hint.walk'), 5000), 2600);
   }
 
+  // 供養: paid items add ceremony only, never merit (七章). The bag follows the account.
+  game.shop = createShop({ slug });
+  game.shop.load().then(() => game.shop.checkReturn());
+  const bagLine = (bag) => Object.entries(bag).filter(([, n]) => n > 0).map(([k, n]) => `${t(`item.${k}`)} ×${n}`).join('、');
+  $('me-shop').onclick = () => game.shop.open();
   const r = game.rituals;
   // 靜坐: sit with everyone in the hall, or alone in the 禪房 (2.2 同修 / 靜修)
   const zen = createZen(game, { mode: info.mode, slug });
@@ -203,6 +209,6 @@ function start(game, session, info) {
     });
   }
   $('me-chip').addEventListener('click', async () => {
-    try { const me = await api('GET', '/api/me'); renderMe(me); await Promise.all([account.show(), reminders.show()]); openPanel('me-panel'); } catch { /* ignore */ }
+    try { const me = await api('GET', '/api/me'); renderMe(me); $('me-bag').textContent = bagLine(game.shop.bag()) || t('shop.bagEmpty'); await Promise.all([account.show(), reminders.show()]); openPanel('me-panel'); } catch { /* ignore */ }
   });
 }

@@ -86,6 +86,15 @@ export class LampService {
     return this.ownerView(l, now);
   }
 
+  /** 付費續燈（P1）：多亮 `days` 天；退款時為負。永遠不加功德。 */
+  extend(lampId, days, now = Date.now()) {
+    const l = this.store.get('lamps', lampId);
+    if (!l) return null;
+    l.expiresAt = Math.max(l.expiresAt, days > 0 ? now : 0) + days * DAY;
+    this.store.put('lamps', l.id, l);
+    return l;
+  }
+
   /** What anyone in the hall sees: masked name, no user id, wish only if public. */
   publicView(l) {
     return { id: l.id, kind: l.kind, name: maskName(l.forName), wish: l.wishPublic ? l.wish : null, litAt: l.litAt };

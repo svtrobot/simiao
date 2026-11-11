@@ -43,6 +43,12 @@ export const config = {
     keys: env.VAPID_KEYS ? JSON.parse(env.VAPID_KEYS) : null,
     enabled: env.PUSH !== 'off',
   },
+  // 付費道具（docs/PAYMENTS.md）：PAYMENTS=sandbox 僅供本機測試（不扣款）；PAYMENTS=stripe 需要兩把金鑰。不設 = 不販售。
+  payments: {
+    provider: (env.PAYMENTS || '').toLowerCase(),
+    stripeSecretKey: env.STRIPE_SECRET_KEY || '',
+    stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET || '',
+  },
   // https://your.domain — passkeys are bound to this origin. Unset: the request's own Host is used.
   publicOrigin: (env.PUBLIC_ORIGIN || '').replace(/\/$/, ''),
   room: {

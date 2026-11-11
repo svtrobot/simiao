@@ -151,6 +151,14 @@ const T = {
     'rem.on': '這台裝置會收到提醒。', 'rem.off': '這台裝置還沒有開啟提醒。', 'rem.denied': '通知被瀏覽器封鎖了，請到瀏覽器或手機的設定裡允許。',
     'rem.unsupported': '這個瀏覽器不支援提醒。', 'rem.ios': 'iPhone 請先用 Safari「分享 → 加入主畫面」，從主畫面打開後再開啟提醒。',
     'rem.enabled': '提醒已開啟', 'rem.failed': '暫時開不了提醒，請稍後再試', 'rem.testSent': '送出了一則，留意通知', 'rem.remindMe': '到時候提醒我',
+    'shop.title': '供養', 'shop.open': '看看供養品', 'shop.note': '付款在支付平台的頁面完成，我們不經手卡號。', 'shop.closed': '供養品還沒有開放。', 'shop.empty': '這裡目前沒有供養品。',
+    'shop.sandboxNote': '這是測試環境：付款只是演練，不會扣款。', 'shop.sandboxAsk': (n, m) => `${n}　${m}。這是測試付款，不會扣款。`, 'shop.sandboxPay': '完成測試付款', 'shop.cancel': '取消',
+    'shop.disclaimer': '供養只是線上的一份心意，不代表任何靈驗或效力，也不會增加功德。', 'shop.cap': (m) => `每個帳號 24 小時內最多 ${m}。`, 'shop.capHit': '今天的供養已經很足了，明天再來。',
+    'shop.bag': (s) => `背包：${s}`, 'shop.bagEmpty': '背包是空的。清香、銀紙、獻花一直都是免費的。', 'shop.done': (n) => `${n} · 已收下`, 'shop.noItem': '背包裡沒有這一樣了', 'shop.noTarget': '找不到要供養的對象，請從燈或靈位那裡再點一次。',
+    'shop.pendingLater': '付款正在確認，稍後會自動放進背包。', 'shop.getIncense': '請高香', 'shop.getPaper': '請紙紮', 'shop.gild': '描金 · 長明燈', 'shop.lampMonth': '續一個月',
+    'item.incense_high': '高香', 'item.incense_dragon': '龍鳳香', 'item.paper_house': '紙紮屋', 'item.paper_car': '紙紮車', 'item.paper_clothes': '寒衣',
+    'incense.doneItem': (n) => `${n}已插入香爐`, 'incense.plain': '清香（免費）', 'incense.holdItem': (n) => `長按點燃${n}`,
+    'anc.burnedItem': (p, n) => `${p} ${n} 件`, 'anc.paper.house': '紙紮屋', 'anc.paper.car': '紙紮車', 'anc.paper.clothes': '寒衣',
     'ui.close': '關閉', 'label.certified': '認證寺院', 'label.culture_space': '文化空間', 'label.culture': '文化空間', 'label.memorial': '紀念館', 'label.tourism': '文旅', 'label.family': '家族祠堂',
   },
 };
@@ -279,6 +287,14 @@ T['zh-Hans'] = {
   'rem.on': '这台设备会收到提醒。', 'rem.off': '这台设备还没有开启提醒。', 'rem.denied': '通知被浏览器屏蔽了，请到浏览器或手机的设置里允许。',
   'rem.unsupported': '这个浏览器不支持提醒。', 'rem.ios': 'iPhone 请先用 Safari「分享 → 添加到主屏幕」，从主屏幕打开后再开启提醒。',
   'rem.enabled': '提醒已开启', 'rem.failed': '暂时开不了提醒，请稍后再试', 'rem.testSent': '发出了一则，留意通知', 'rem.remindMe': '到时候提醒我',
+  'shop.title': '供养', 'shop.open': '看看供养品', 'shop.note': '付款在支付平台的页面完成，我们不经手卡号。', 'shop.closed': '供养品还没有开放。', 'shop.empty': '这里目前没有供养品。',
+  'shop.sandboxNote': '这是测试环境：付款只是演练，不会扣款。', 'shop.sandboxAsk': (n, m) => `${n}　${m}。这是测试付款，不会扣款。`, 'shop.sandboxPay': '完成测试付款',
+  'shop.disclaimer': '供养只是线上的一份心意，不代表任何灵验或效力，也不会增加功德。', 'shop.cap': (m) => `每个账号 24 小时内最多 ${m}。`, 'shop.capHit': '今天的供养已经很足了，明天再来。',
+  'shop.bag': (s) => `背包：${s}`, 'shop.bagEmpty': '背包是空的。清香、银纸、献花一直都是免费的。', 'shop.done': (n) => `${n} · 已收下`, 'shop.noItem': '背包里没有这一样了', 'shop.noTarget': '找不到要供养的对象，请从灯或灵位那里再点一次。',
+  'shop.pendingLater': '付款正在确认，稍后会自动放进背包。', 'shop.getIncense': '请高香', 'shop.getPaper': '请纸扎', 'shop.gild': '描金 · 长明灯', 'shop.lampMonth': '续一个月',
+  'item.incense_dragon': '龙凤香', 'item.paper_house': '纸扎屋', 'item.paper_car': '纸扎车',
+  'incense.doneItem': (n) => `${n}已插入香炉`, 'incense.plain': '清香（免费）', 'incense.holdItem': (n) => `长按点燃${n}`,
+  'anc.paper.house': '纸扎屋', 'anc.paper.car': '纸扎车',
 };
 
 let locale = 'zh-Hant';

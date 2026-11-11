@@ -13,6 +13,7 @@ export const ACTIONS = new Set(ACTION_LIST);
 const ACODE = Object.fromEntries(ACTION_LIST.map((a, i) => [a, i]));
 const GREETS = new Set(['gassho', 'bow', 'rejoice', 'wellwish']);
 const MAX_SPEED = 4.5;           // m/s, generous: walk is ~1.4 m/s, run-to-seat ~3
+const PAID_INCENSE = new Set(['incense_high', 'incense_dragon']);
 const MSG_BUDGET = 30;           // messages per second per client
 const SHADOW_FILL = 30;          // 少于 30 人的房间用“影子同修”补位
 
@@ -96,7 +97,7 @@ export class Room {
       case 'act': return this._act(m, msg.a);
       case 'sit': return this._sit(m, msg.seat, now);
       case 'stand': return this._stand(m, now);
-      case 'rit': return this._ritual(m, msg.k, now);
+      case 'rit': return this._ritual(m, msg.k, now, msg.i);
       case 'greet': return this._greet(m, msg, now);
       case 'ping': return this._send(m, { t: 'pong', c: msg.c, s: now });
       default: return undefined;
@@ -156,9 +157,17 @@ export class Room {
     this._merit(m, 'meditate', now, mins);
   }
 
-  _ritual(m, kind, now) {
+  _ritual(m, kind, now, item) {
     if (!['incense', 'muyu', 'bead', 'bow'].includes(kind)) return;
     if (!actionAllowed(this.mode, kind, this.scene)) return this._send(m, { t: 'err', code: 'not_in_this_mode' });
+    if (kind === 'incense' && item) {
+      // 高香 / 龍鳳香來自背包（付費道具）：只多一份儀式感，不加功德、也不佔每日三炷清香（規則 1）
+      if (!PAID_INCENSE.has(item) || !this.ctx.shop?.use(m.user, item)) return this._send(m, { t: 'err', code: 'no_item' });
+      const total = this.ctx.offerings.addIncense(this.temple.id, 3, now);
+      this.events.push({ k: 'incense', id: m.id, slot: 'burner-main', item });
+      this.ctx.lobby.bumpIncense(this.temple.id, total);
+      return this._send(m, { t: 'bag', bag: this.ctx.shop.bag(m.user) });
+    }
     if (kind === 'incense') {
       // 每日 3 炷免费清香，服务端为准；超出则不落香也不加功德
       const res = this._merit(m, 'incense', now);

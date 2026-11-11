@@ -418,15 +418,18 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
   sticks.count = tips.count = 0;
   group.add(sticks, tips);
   const stickState = [];
-  function plantIncense(smoke) {
+  /** item: undefined = 三炷清香; 'incense_high' = 高香 (taller); 'incense_dragon' = 龍鳳香 (one thick, long stick). */
+  function plantIncense(smoke, item) {
     if (!bz) return;
     const r = 0.45 * Math.sqrt(rnd()), a = rnd() * Math.PI * 2;
     const cx = bz.x + Math.cos(a) * r, cz = bz.z + Math.sin(a) * r;
-    for (let k = 0; k < 3; k++) {
-      const x = cx + (k - 1) * 0.05, z = cz + (rnd() - 0.5) * 0.02;
-      const len = 0.62 + rnd() * 0.06;
-      stickState.push({ x, z, len, born: performance.now() / 1000, tilt: (rnd() - 0.5) * 0.1 });
-      if (smoke) smoke.emitter(V3(x, 1.7 + len, z), 120, 4);
+    const dragon = item === 'incense_dragon', high = item === 'incense_high';
+    const n = dragon ? 1 : 3, lenK = dragon ? 2.1 : high ? 1.55 : 1, thick = dragon ? 3.2 : high ? 1.5 : 1;
+    for (let k = 0; k < n; k++) {
+      const x = cx + (dragon ? 0 : (k - 1) * 0.05), z = cz + (rnd() - 0.5) * 0.02;
+      const len = (0.62 + rnd() * 0.06) * lenK;
+      stickState.push({ x, z, len, thick, born: performance.now() / 1000, tilt: (rnd() - 0.5) * (dragon ? 0.03 : 0.1) });
+      if (smoke) smoke.emitter(V3(x, 1.7 + len, z), 120, 4 * thick);
     }
     while (stickState.length > MAXS) stickState.shift();
   }
@@ -435,7 +438,7 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
     stickState.forEach((s, i) => {
       const burnt = Math.min(0.75, (now - s.born) / 600); // burns down over 10 minutes
       const L = s.len * (1 - burnt);
-      sticks.setMatrixAt(i, M(s.x, 1.7, s.z, s.tilt, 0, s.tilt * 0.7, 1, L, 1));
+      sticks.setMatrixAt(i, M(s.x, 1.7, s.z, s.tilt, 0, s.tilt * 0.7, s.thick || 1, L, s.thick || 1));
       tips.setMatrixAt(i, M(s.x + Math.sin(s.tilt * 0.7) * -L, 1.7 + L, s.z + Math.sin(s.tilt) * L, 0, 0, 0, 1));
     });
     sticks.count = tips.count = stickState.length;

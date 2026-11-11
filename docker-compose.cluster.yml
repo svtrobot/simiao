@@ -18,6 +18,9 @@ x-app: &app
     REGION: tw
     ADMIN_TOKEN: ${ADMIN_TOKEN:-}
     PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-}
+    PAYMENTS: ${PAYMENTS:-}
+    STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+    STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
     DATABASE_URL: postgres://simiao:${POSTGRES_PASSWORD:-simiao-dev-only}@postgres:5432/simiao
     REDIS_URL: redis://redis:6379
 

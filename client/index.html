@@ -99,10 +99,12 @@
 <!-- 上香：长按点燃 -->
 <div id="incense-panel" class="panel bottom-panel" hidden>
   <p id="incense-tip" class="panel-tip" data-i18n="incense.hold">長按點燃三炷清香</p>
+  <div id="incense-kinds" class="chips" role="radiogroup" hidden></div>
   <button id="incense-hold" type="button" class="hold-btn" aria-describedby="incense-tip">
     <svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" class="track"/><circle cx="50" cy="50" r="44" class="fill" id="incense-ring"/></svg>
     <span data-i18n="incense.light">點香</span>
   </button>
+  <button id="incense-shop" type="button" class="link-btn inline" hidden data-i18n="shop.getIncense">請高香</button>
   <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
 </div>
 
@@ -343,6 +345,7 @@
     <p id="anc-today" class="fineprint anc-today"></p>
     <div class="row">
       <button id="anc-burn-btn" type="button" class="btn" data-i18n="anc.burn">燒紙</button>
+      <button id="anc-gild" type="button" class="btn-ghost small" hidden data-i18n="shop.gild">描金 · 長明燈</button>
       <button id="anc-edit" type="button" class="btn-ghost small" data-i18n="anc.edit">編輯</button>
     </div>
     <section class="anc-notes">
@@ -363,6 +366,7 @@
       <p id="anc-burn-tip" class="fineprint" data-i18n="anc.burnTip">按住紙，拖進火盆；也可以輕觸放一張</p>
     </div>
     <p id="anc-burn-count" class="fineprint"></p>
+    <button id="anc-paper-shop" type="button" class="link-btn inline" hidden data-i18n="shop.getPaper">請紙紮</button>
     <button id="anc-burn-done" type="button" class="btn-ghost small" data-i18n="anc.burnDone">好了</button>
   </div>
   <div id="anc-ring" class="anc-ring" hidden></div>
@@ -457,6 +461,11 @@
   <h2 id="me-title" data-i18n="me.title">我的修行</h2>
   <dl id="me-stats" class="me-stats"></dl>
   <p class="fineprint" data-i18n="me.note">功德來自靜坐、禮拜與善念，買不到，也不必和誰比。</p>
+  <section class="acc">
+    <h3 data-i18n="shop.title">供養</h3>
+    <p id="me-bag" class="panel-tip"></p>
+    <button id="me-shop" type="button" class="btn-ghost small" data-i18n="shop.open">看看供養品</button>
+  </section>
   <section id="rem" class="acc">
     <h3 data-i18n="rem.title">提醒</h3>
     <p id="rem-status" class="panel-tip"></p>
@@ -484,6 +493,24 @@
       <button id="acc-signout" type="button" class="btn-ghost small" hidden data-i18n="acc.signout">在這台裝置登出</button>
     </div>
   </section>
+  <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
+</div>
+
+<!-- 供養：付費只買儀式感，不加功德（七章） -->
+<div id="shop-panel" class="panel modal shop" hidden role="dialog" aria-modal="true" aria-labelledby="shop-title">
+  <h2 id="shop-title" data-i18n="shop.title">供養</h2>
+  <p id="shop-note" class="panel-tip"></p>
+  <ul id="shop-list" class="shop-list"></ul>
+  <div id="shop-sandbox" class="shop-sandbox" hidden>
+    <p id="shop-sandbox-text" class="panel-tip"></p>
+    <div class="row">
+      <button id="shop-sandbox-pay" type="button" class="btn" data-i18n="shop.sandboxPay">完成測試付款</button>
+      <button id="shop-sandbox-cancel" type="button" class="btn-ghost small" data-i18n="shop.cancel">取消</button>
+    </div>
+  </div>
+  <p id="shop-bag" class="fineprint"></p>
+  <p class="fineprint" data-i18n="shop.disclaimer">供養只是線上的一份心意，不代表任何靈驗或效力，也不會增加功德。</p>
+  <p id="shop-cap" class="fineprint"></p>
   <button type="button" class="btn-ghost small close" data-close data-i18n="ui.close">關閉</button>
 </div>
 

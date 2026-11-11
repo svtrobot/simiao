@@ -1,0 +1,47 @@
+{
+  "_note": "價格為最小貨幣單位（TWD、USD 皆 ×100）。數字取自設計文檔 3.2 / 七章的建議區間，上線前由營運確認。商品只買儀式感：任何商品都不加功德、不含隨機內容。",
+  "currency": { "tw": "TWD", "overseas": "USD" },
+  "dailyCap": { "TWD": 60000, "USD": 2000 },
+  "skus": [
+    {
+      "id": "incense_high_10", "context": "incense", "ritual": true,
+      "grants": { "incense_high": 10 },
+      "price": { "TWD": 12000, "USD": 399 },
+      "name": { "zh-Hant": "高香 · 十炷", "zh-Hans": "高香 · 十炷" },
+      "desc": { "zh-Hant": "比清香高一截，煙也長一些。", "zh-Hans": "比清香高一截，烟也长一些。" }
+    },
+    {
+      "id": "incense_dragon_5", "context": "incense", "ritual": true,
+      "grants": { "incense_dragon": 5 },
+      "price": { "TWD": 15000, "USD": 499 },
+      "name": { "zh-Hant": "龍鳳香 · 五炷", "zh-Hans": "龙凤香 · 五炷" },
+      "desc": { "zh-Hant": "一炷粗長的大香，節日或家裡有事時用。", "zh-Hans": "一炷粗长的大香，节日或家里有事时用。" }
+    },
+    {
+      "id": "paper_set", "context": "paper", "ritual": true,
+      "grants": { "paper_house": 1, "paper_car": 1, "paper_clothes": 2 },
+      "price": { "TWD": 9000, "USD": 299 },
+      "name": { "zh-Hant": "紙紮一套", "zh-Hans": "纸扎一套" },
+      "desc": { "zh-Hant": "紙紮屋、紙紮車各一，寒衣兩件。", "zh-Hans": "纸扎屋、纸扎车各一，寒衣两件。" }
+    },
+    {
+      "id": "paper_clothes_10", "context": "paper", "ritual": true,
+      "grants": { "paper_clothes": 10 },
+      "price": { "TWD": 6000, "USD": 199 },
+      "name": { "zh-Hant": "寒衣 · 十件", "zh-Hans": "寒衣 · 十件" },
+      "desc": { "zh-Hant": "天涼了，給家人添衣。", "zh-Hans": "天凉了，给家人添衣。" }
+    },
+    {
+      "id": "lamp_month", "context": "lamp", "apply": "lamp_extend", "days": 30, "target": "lamp",
+      "price": { "TWD": 3000, "USD": 99 },
+      "name": { "zh-Hant": "續燈一個月", "zh-Hans": "续灯一个月" },
+      "desc": { "zh-Hant": "讓這盞燈多亮三十天。", "zh-Hans": "让这盏灯多亮三十天。" }
+    },
+    {
+      "id": "tablet_permanent", "context": "tablet", "apply": "tablet_permanent", "target": "tablet",
+      "price": { "TWD": 30000, "USD": 999 },
+      "name": { "zh-Hant": "描金靈位 · 長明燈", "zh-Hans": "描金灵位 · 长明灯" },
+      "desc": { "zh-Hant": "靈位描金，前面一盞燈長明不熄。", "zh-Hans": "灵位描金，前面一盏灯长明不熄。" }
+    }
+  ]
+}

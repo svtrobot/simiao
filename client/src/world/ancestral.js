@@ -2,6 +2,7 @@
 // 跟著今天家人獻過的供品出現；儀式模式有火盆，紙一張張放進去，捲曲、燃盡、紙灰上飄（11.x 煙與火）。
 // 跟禪房一樣是獨立的 THREE.Scene，不連大殿房間——家堂只有家人。
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { woodPlanks, lacquer, couplet, altarCloth, softDot } from './textures.js';
 import { Smoke } from './fx.js';
 import { tex, rng, plaster, lathe } from './chamber.js';
@@ -21,12 +22,17 @@ const CN_DIGIT = '〇一二三四五六七八九';
 const cnYear = (y) => String(y).split('').map((d) => CN_DIGIT[+d]).join('');
 
 /** 靈位 face: lacquer, gold border, relation · name 之位 · years. */
-function tabletFace({ name, relation, born, died }) {
+function tabletFace({ name, relation, born, died, permanent }) {
   return tex(128, 384, (g, w, h) => {
     const grd = g.createLinearGradient(0, 0, w, 0);
     grd.addColorStop(0, '#24130c'); grd.addColorStop(0.5, '#3a1d12'); grd.addColorStop(1, '#24130c');
     g.fillStyle = grd; g.fillRect(0, 0, w, h);
     g.strokeStyle = '#c9a24a'; g.lineWidth = 4; g.strokeRect(7, 7, w - 14, h - 14);
+    if (permanent) { // 描金: a second gilt band and cloud corners
+      g.strokeStyle = '#f0d488'; g.lineWidth = 3; g.strokeRect(18, 18, w - 36, h - 36);
+      g.fillStyle = '#f0d488';
+      for (const [cx, cy] of [[18, 18], [w - 18, 18], [18, h - 18], [w - 18, h - 18]]) { g.beginPath(); g.arc(cx, cy, 7, 0, Math.PI * 2); g.fill(); }
+    }
     g.lineWidth = 1.5; g.strokeRect(13, 13, w - 26, h - 26);
     g.fillStyle = '#e6c879'; g.textAlign = 'center'; g.textBaseline = 'middle';
     const col = (text, x, top, bottom, max) => {
@@ -329,7 +335,7 @@ export function buildAncestral({ look, mode, quality }) {
       const lamp = new THREE.Sprite(new THREE.SpriteMaterial({ map: lampTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
       lamp.scale.setScalar(0.08); lamp.position.set(0, 0.035, 0.085); g.add(lamp);
       tabletG.add(g);
-      tabletMeshes.set(tb.id, { group: g, slab, lamp, faceMat, pos: pos.clone().add(new THREE.Vector3(0, 0.25, 0)), lit: tb.today?.offers?.length > 0 });
+      tabletMeshes.set(tb.id, { group: g, slab, lamp, faceMat, pos: pos.clone().add(new THREE.Vector3(0, 0.25, 0)), lit: tb.today?.offers?.length > 0 || !!tb.permanent, permanent: !!tb.permanent });
       picks.push(base, slab, cap);
     });
     refreshOffers(list);
@@ -340,7 +346,7 @@ export function buildAncestral({ look, mode, quality }) {
     for (const tb of list) {
       for (const o of tb.today?.offers || []) kinds.add(o.kind);
       const t = tabletMeshes.get(tb.id);
-      if (t) t.lit = (tb.today?.offers?.length || 0) > 0;
+      if (t) t.lit = (tb.today?.offers?.length || 0) > 0 || !!tb.permanent;
     }
     for (const [k, g] of Object.entries(items)) g.userData.on = kinds.has(k);
   }
@@ -373,7 +379,19 @@ export function buildAncestral({ look, mode, quality }) {
 
   function makeSheet(kind) {
     let geo, size;
+    const strip = (g) => { const n = g.index ? g.toNonIndexed() : g; for (const k of Object.keys(n.attributes)) if (!['position', 'normal', 'uv'].includes(k)) n.deleteAttribute(k); return n; };
+    let tint = null;
     if (kind === 'silver') { geo = new THREE.PlaneGeometry(0.15, 0.15, 6, 6); geo.rotateX(-Math.PI / 2); size = 0.15; }
+    else if (kind === 'house') { // 紙紮屋: a paper box with a pitched roof
+      const roof = new THREE.ConeGeometry(0.115, 0.07, 4); roof.rotateY(Math.PI / 4); roof.translate(0, 0.135, 0);
+      geo = mergeGeometries([strip(new THREE.BoxGeometry(0.15, 0.1, 0.12).translate(0, 0.05, 0)), strip(roof)]); size = 0.2; tint = '#c8473a';
+    } else if (kind === 'car') { // 紙紮車
+      geo = mergeGeometries([strip(new THREE.BoxGeometry(0.2, 0.05, 0.09).translate(0, 0.035, 0)), strip(new THREE.BoxGeometry(0.1, 0.045, 0.085).translate(-0.01, 0.08, 0))]); size = 0.22; tint = '#3d5f8a';
+    } else if (kind === 'clothes') { // 寒衣: a folded paper robe
+      const s = new THREE.Shape();
+      for (const [x, y, i] of [[-0.03, 0.09], [0.03, 0.09], [0.1, 0.06], [0.1, 0.02], [0.05, 0.03], [0.05, -0.09], [-0.05, -0.09], [-0.05, 0.03], [-0.1, 0.02], [-0.1, 0.06]].map((p, i) => [...p, i])) (i ? s.lineTo(x, y) : s.moveTo(x, y));
+      geo = new THREE.ShapeGeometry(s); geo.rotateX(-Math.PI / 2); size = 0.2; tint = '#5d7396';
+    }
     else if (kind === 'ingot') {
       geo = new THREE.SphereGeometry(0.06, 16, 10); geo.scale(1.3, 0.55, 0.7);
       const p = geo.attributes.position;
@@ -386,7 +404,7 @@ export function buildAncestral({ look, mode, quality }) {
       geo.computeVertexNormals(); size = 0.15;
     }
     const mat = burnable(new THREE.MeshStandardMaterial({
-      map: kind === 'silver' ? silverTex : goldTex, color: kind === 'lotus' ? '#f6b8a8' : '#ffffff',
+      map: tint ? null : kind === 'silver' ? silverTex : goldTex, color: tint || (kind === 'lotus' ? '#f6b8a8' : '#ffffff'),
       metalness: kind === 'silver' ? 0.1 : 0.35, roughness: 0.6, side: THREE.DoubleSide,
     }), size);
     const m = new THREE.Mesh(geo, mat); m.castShadow = true;

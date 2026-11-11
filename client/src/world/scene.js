@@ -141,15 +141,17 @@ export async function createGame({ canvas, info, session, mood, slug }) {
     if (detail.look) { selfEntry?.av.setLook(detail.look); avatars.relabel(me.id, me); toast(t('rank.up', t(`rank.${detail.rank}`)), { gold: true }); }
     if (['incense', 'bow', 'meditate', 'greet'].includes(detail.action)) toast(t('merit.gain', detail.gained));
   });
+  net.addEventListener('bag', ({ detail }) => game.shop?.setBag(detail.bag));
   net.addEventListener('error', ({ detail }) => {
+    if (detail.code === 'no_item') toast(t('shop.noItem'));
     if (detail.code === 'incense_daily_limit') toast(t('incense.limit'));
     else if (detail.code === 'seat_taken') toast(t('sit.full'));
   });
   net.addEventListener('event', ({ detail: e }) => {
     if (e.k === 'incense') {
-      temple.plantIncense(smoke);
+      temple.plantIncense(smoke, e.item);
       showStats({ incense: (stats?.incense || 0) + 3 }); // 香火旺：立即可见
-      if (e.id === me.id) { toast(t('incense.done'), { gold: true }); audio.bell(0.2); }
+      if (e.id === me.id) { toast(e.item ? t('incense.doneItem', t(`item.${e.item}`)) : t('incense.done'), { gold: true }); audio.bell(0.2); }
     } else if (e.k === 'greet') {
       const from = avatars.get(e.from);
       if (from && !from.self) { from.av.setAction('greet'); setTimeout(() => from.av.setAction(from.member.a || 'idle'), 1800); }

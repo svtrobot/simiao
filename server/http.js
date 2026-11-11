@@ -39,6 +39,12 @@ async function readJson(req, limit = 8 * 1024) {
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new HttpError(400, 'invalid_json'); }
 }
 
+async function readRaw(req, limit = 256 * 1024) {
+  let size = 0; const chunks = [];
+  for await (const c of req) { size += c.length; if (size > limit) throw new HttpError(413, 'body_too_large'); chunks.push(c); }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 function serveStatic(res, baseDir, rel, { cache = 'no-cache' } = {}) {
   const safe = path.normalize(decodeURIComponent(rel)).replace(/^([/\\])+/, '');
   if (safe.split(/[/\\]/).includes('..')) return false;
@@ -110,6 +116,42 @@ export function createHandler(ctx) {
   route('POST', '/api/account/login/options', (req) => acc.loginOptions(req));
   route('POST', '/api/account/login', async (req) => { const r = await readJson(req, 32 * 1024); acc.throttle(ip(req), Date.now()); return acc.login(r, req); });
   route('POST', '/api/account/signout', (req) => { users.require(token(req)); users.revokeToken(token(req)); return { ok: true }; });
+
+  // ---- 道具與供養（七章；docs/PAYMENTS.md）。付費只買儀式感：任何商品都不加功德 ----
+  const shop = ctx.shop;
+  const targetOk = (u) => (sku, target) => {
+    try {
+      if (sku.target === 'lamp') { const l = ctx.store.get('lamps', target?.lampId); return !!l && l.userId === u.id && l.expiresAt > Date.now(); }
+      if (sku.target === 'tablet') { const tb = ctx.ancestors.tabletFor(u, target?.hallId, target?.tabletId); return !tb.permanent; }
+    } catch { /* not theirs */ }
+    return false;
+  };
+  route('GET', '/api/shop', async (req, p, url) => {
+    const u = users.byToken(token(req));
+    let mode = 'ritual';
+    try { mode = modeAt(url); } catch { /* unknown temple: default */ }
+    return shop.list(u, mode);
+  });
+  route('POST', '/api/shop/orders', async (req) => {
+    const u = users.require(token(req));
+    return shop.createOrder(u, await readJson(req), { origin: ctx.accounts.site(req).origin, validateTarget: targetOk(u) });
+  });
+  route('GET', '/api/shop/orders', async (req) => ({ orders: await shop.orders(users.require(token(req))) }));
+  route('GET', '/api/shop/orders/:id', async (req, p) => { const u = users.require(token(req)); return { order: await shop.order(u, p.id), bag: shop.bag(u) }; });
+  // 沙盒付款：只有 PAYMENTS=sandbox 的部署才有，不扣款，用來在本機走完整個流程
+  route('POST', '/api/shop/sandbox/:id/pay', async (req, p) => {
+    if (shop.provider?.id !== 'sandbox') throw new HttpError(404, 'not_found');
+    const u = users.require(token(req));
+    await shop.order(u, p.id); // must be theirs
+    return { order: await shop.complete(p.id, 'sandbox'), bag: shop.bag(u), me: users.publicView(u) };
+  });
+  route('POST', '/api/pay/stripe/webhook', async (req) => {
+    if (shop.provider?.id !== 'stripe') throw new HttpError(404, 'not_found');
+    const ev = shop.provider.webhook(await readRaw(req), req.headers);
+    if (ev.type === 'paid') await shop.complete(ev.orderId, ev.ref);
+    else if (ev.type === 'refunded') await shop.refund(ev.orderId);
+    return { received: true };
+  });
 
   // ---- 提醒（Web Push，4.1）----
   route('GET', '/api/push', (req) => ctx.push.status(users.require(token(req))));
@@ -253,7 +295,7 @@ export function createHandler(ctx) {
   // ---- 祖先堂（2.3、3.2）：私人家堂，只有家人看得到；燒紙只在儀式模式（COMPLIANCE.md）----
   const modeAt = (url) => { const t = temple(url.searchParams.get('t') || 'main'); return ctx.modeOf(t, scenes.get(t.sceneId)); };
   const anc = ctx.ancestors;
-  const hallOut = (u, id, url) => anc.view(u, id, modeAt(url));
+  const hallOut = (u, id, url) => ({ ...anc.view(u, id, modeAt(url)), bag: ctx.shop.bag(u) });
   const tabletOut = (u, hallId, tb) => anc.tabletView(tb, u, anc.hall(u, hallId));
   route('GET', '/api/ancestors', (req, p, url) => {
     const u = users.require(token(req));
@@ -294,7 +336,7 @@ export function createHandler(ctx) {
     const u = users.require(token(req));
     const out = anc.burn(u, p.id, p.tid, await readJson(req), modeAt(url));
     ctx.users.save(u); // rate bucket lives on the user
-    return { counted: out.counted, burned: tabletOut(u, p.id, out.tablet).today.burned };
+    return { counted: out.counted, burned: tabletOut(u, p.id, out.tablet).today.burned, bag: ctx.shop.bag(u) };
   });
 
   route('POST', '/api/temples/apply', async (req) => templesSvc.apply(await readJson(req)));

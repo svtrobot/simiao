@@ -54,19 +54,46 @@ export function createRituals(game) {
     try {
       if (!(await walkTo(anchors.burner))) return;
       controls.locked = true;
+      const item = chooseIncense();
       const lit = await holdToLight();
       if (!lit) return;
+      const chosen = item();
       act('incense'); audio.sticks(0.3);
       hint(t('incense.lit'));
       await wait(1400);
       for (let i = 0; i < 3; i++) { // 举香齐眉三拜
         self().setAction('bow'); await wait(700); self().setAction('incense'); await wait(650);
       }
-      net.send({ t: 'rit', k: 'incense' });
+      // 高香 / 龍鳳香 come from the bag and never add merit; 清香 is the free three a day
+      net.send(chosen ? { t: 'rit', k: 'incense', i: chosen } : { t: 'rit', k: 'incense' });
       hint('');
       await wait(300);
       idle();
     } finally { controls.locked = false; busy = false; closePanel('incense-panel'); }
+  }
+
+  /** 清香（免費）或背包裡的高香 / 龍鳳香。Returns a getter for the choice at the moment of lighting. */
+  function chooseIncense() {
+    const bag = game.shop?.bag() || {};
+    const kinds = [null, ...['incense_high', 'incense_dragon'].filter((k) => bag[k] > 0)];
+    let chosen = null;
+    const box = $('incense-kinds');
+    const paint = () => {
+      for (const b of box.children) b.setAttribute('aria-checked', String((b.dataset.item || null) === chosen));
+      $('incense-tip').textContent = chosen ? t('incense.holdItem', t(`item.${chosen}`)) : t('incense.hold');
+    };
+    box.replaceChildren(...kinds.map((k) => {
+      const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'radio');
+      if (k) b.dataset.item = k;
+      b.textContent = k ? `${t(`item.${k}`)} ×${bag[k]}` : t('incense.plain');
+      b.onclick = () => { chosen = k; paint(); };
+      return b;
+    }));
+    box.hidden = kinds.length < 2;
+    $('incense-shop').hidden = !game.shop?.enabled();
+    $('incense-shop').onclick = () => game.shop.open({ context: 'incense' });
+    paint();
+    return () => chosen;
   }
 
   function holdToLight() {
@@ -400,6 +427,11 @@ export function createRituals(game) {
           b.disabled = true;
           try { await api('POST', `/api/lamps/${l.id}/renew`); toast(t('lamp.renewed'), { gold: true }); await refreshLamps(); } catch { toast(t('err.generic')); b.disabled = false; }
         };
+        li.append(b);
+      }
+      if (!out && game.shop?.enabled()) {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-ghost small'; b.textContent = t('shop.lampMonth');
+        b.onclick = () => game.shop.open({ context: 'lamp', target: { lampId: l.id }, onDone: () => refreshLamps() });
         li.append(b);
       }
       if (l.cardId && !out) {

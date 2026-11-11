@@ -406,6 +406,20 @@ div.temple-row span { color: var(--muted); }
 #rem-status.ok { color: var(--gold); }
 .anc-remind { margin-top: 0; opacity: 1; animation: none; pointer-events: auto; font-size: 12px; min-height: 28px; color: var(--paper-dim); }
 
+/* ---- 供養 ---- */
+.shop-list { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 8px; text-align: left; }
+.shop-list li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--glass-line); border-radius: 14px; }
+.shop-list li > div { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.shop-list li b { font-family: var(--serif); font-weight: 500; letter-spacing: 0.1em; }
+.shop-list li small { color: var(--muted); line-height: 1.5; }
+.shop-list li .btn { padding: 8px 14px; letter-spacing: 0.05em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.shop-list li.empty { justify-content: center; color: var(--muted); border-style: dashed; }
+.shop-sandbox { border: 1px dashed rgba(210, 173, 94, 0.6); border-radius: 14px; padding: 12px; margin: 0 0 10px; }
+.chips { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 0 0 10px; }
+.chips button { background: transparent; border: 1px solid var(--glass-line); border-radius: 999px; padding: 6px 14px; min-height: 36px; font-size: 13px; color: var(--paper-dim); }
+.chips button[aria-checked="true"] { border-color: var(--gold); color: var(--gold); background: rgba(210, 173, 94, 0.1); }
+.link-btn.inline { opacity: 1; animation: none; margin-top: 4px; font-size: 12px; min-height: 30px; color: var(--paper-dim); }
+
 @media (max-width: 560px) {
   .presence { display: none; }
   /* the top bar must never wrap: temple name and the merit chip each stay on one line */

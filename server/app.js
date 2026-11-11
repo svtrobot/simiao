@@ -13,6 +13,9 @@ import { CopyTexts, CopyService, ZenRooms } from './domain/copying.js';
 import { AncestorService } from './domain/ancestors.js';
 import { AccountService } from './domain/accounts.js';
 import { PushService } from './domain/push.js';
+import { ShopService } from './domain/shop.js';
+import { providerFor } from './domain/payments.js';
+import { JsonLedger, PgLedger } from './store/ledger.js';
 import { record } from './domain/practice.js';
 import { effectiveMode, actionAllowed } from './domain/compliance.js';
 import { Lobby } from './realtime/lobby.js';
@@ -46,6 +49,16 @@ export function createApp(overrides = {}) {
     store, users: ctx.users, ancestors: ctx.ancestors, daily: ctx.daily, tz: config.regionPolicy.tz, locale: config.regionPolicy.locale,
     mode: config.regionPolicy.ritualsAllowed ? 'ritual' : 'cultural', subject: config.push?.subject || 'https://github.com/svtrobot/simiao', keys: config.push?.keys || null,
   });
+  // 付費道具：帳本在 PostgreSQL 模式下走事務（store/ledger.js），不走文檔同步
+  ctx.ledger = store.pg ? new PgLedger(store.pg) : new JsonLedger(store);
+  ctx.shop = new ShopService({
+    contentDir: config.contentDir, users: ctx.users, ledger: ctx.ledger, provider: providerFor(config), region: config.region, regionPolicy: config.regionPolicy,
+    effects: {
+      lampExtend: (user, target, days) => { if (ctx.lamps.extend(target?.lampId, days)) ctx.lobby.bumpLamps(ctx.store.get('lamps', target.lampId).templeId); },
+      tabletPermanent: (user, target, on) => ctx.ancestors.setPermanent(target?.tabletId, on),
+    },
+  });
+  ctx.ancestors.useItem = (user, item, n) => ctx.shop.use(user, item, n);
   ctx.lobby = new Lobby(ctx);
   if (cluster) {
     cluster.start(() => ctx.lobby.presence());

@@ -50,3 +50,9 @@
 
 ### 关闭码
 `4000` 闲置 30 分钟 · `4001` 同一账号在别处登录 · `4008` 消息过快 · `4401` 需要会话 · `4404` 寺庙不存在
+
+## 付费道具（P1，docs/PAYMENTS.md）
+
+- 客户端 → 服务器：`{ "t": "rit", "k": "incense", "i": "incense_high" }`。`i` 可省略（= 每日三炷免费清香）；取值 `incense_high`、`incense_dragon`，从背包扣一件。没有这件道具时回 `{ "t": "err", "code": "no_item" }`。付费香**不发 `merit`**。
+- 服务器 → 本人：`{ "t": "bag", "bag": { "incense_high": 9 } }`，背包变化后发给本人。
+- 房间事件：`{ "k": "incense", "id": …, "slot": …, "item": "incense_high" }`，`item` 仅在用了付费香时出现，客户端据此插一炷更高（或更粗）的香。

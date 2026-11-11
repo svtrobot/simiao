@@ -21,6 +21,8 @@ export const OFFERINGS = {
   cultural: ['flower', 'fruit', 'candle'],
 };
 export const PAPER = { ritual: ['silver', 'ingot', 'lotus'], cultural: [] };
+/** 付費紙紮：種類 → 背包裡的道具。只在儀式模式，用一件少一件，同樣不記功德。 */
+export const PAID_PAPER = { house: 'paper_house', car: 'paper_car', clothes: 'paper_clothes' };
 
 const DAY = 86400000;
 const clean = (s, max) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -132,7 +134,7 @@ export function upcoming(tablets, today, { days = 30, tz } = {}) {
 }
 
 export class AncestorService {
-  constructor({ store, tz, hotline }) { this.store = store; this.tz = tz; this.hotline = hotline; }
+  constructor({ store, tz, hotline, useItem = null }) { this.store = store; this.tz = tz; this.hotline = hotline; this.useItem = useItem; }
 
   // ---------------------------------------------------------------- halls
 
@@ -326,7 +328,9 @@ export class AncestorService {
    * (a bucket of BURN_BURST sheets refilling one per BURN_MS). Never merit.
    */
   burn(user, hallId, tabletId, { kind, n = 1 } = {}, mode, now = Date.now()) {
-    if (!PAPER[mode]?.includes(kind)) throw new HttpError(mode === 'ritual' ? 422 : 403, mode === 'ritual' ? 'invalid_paper' : 'not_in_this_mode');
+    const paid = PAID_PAPER[kind];
+    if (mode !== 'ritual') throw new HttpError(403, 'not_in_this_mode');
+    if (!paid && !PAPER[mode].includes(kind)) throw new HttpError(422, 'invalid_paper');
     n = Math.floor(Number(n));
     if (!(n >= 1 && n <= 10)) throw new HttpError(422, 'invalid_count');
     const tb = this.tabletFor(user, hallId, tabletId);
@@ -334,8 +338,10 @@ export class AncestorService {
     const b = user.burn && user.burn.date === date ? user.burn : (user.burn = { date, n: 0, tokens: BURN_BURST, at: now });
     b.tokens = Math.min(BURN_BURST, b.tokens + (now - b.at) / BURN_MS); b.at = now;
     if (b.tokens < n) throw new HttpError(429, 'too_fast');
+    // take the paid item only once the sheet is really going into the fire
+    if (paid && !this.useItem?.(user, paid, n)) throw new HttpError(409, 'no_item');
     b.tokens -= n;
-    const counted = Math.max(0, Math.min(n, BURN_DAILY - b.n));
+    const counted = paid ? n : Math.max(0, Math.min(n, BURN_DAILY - b.n));
     b.n += n;
     const day = this.day(tb, now);
     if (counted) day.burned[kind] = (day.burned[kind] || 0) + counted;
@@ -354,7 +360,7 @@ export class AncestorService {
     return {
       id: tb.id, name: tb.name, relation: tb.relation, epitaph: tb.epitaph, born: tb.born,
       died: tb.died.lunar ? { date: tb.died.date, lunar: true, ly: tb.died.ly, lm: tb.died.lm, ld: tb.died.ld, leap: tb.died.leap } : { date: tb.died.date, lunar: false },
-      photoV: tb.photo ? tb.photoV : 0,
+      photoV: tb.photo ? tb.photoV : 0, permanent: !!tb.permanent,
       canEdit: tb.createdBy === viewer.id || f.ownerId === viewer.id,
       today: {
         offers: day.offers.map((o) => ({ kind: o.kind, name: o.name, mine: o.userId === viewer.id })),
@@ -375,6 +381,15 @@ export class AncestorService {
       upcoming: upcoming(tablets, todayIn(this.tz, now), { days: 45, tz: this.tz }),
       offerings: OFFERINGS[mode] || OFFERINGS.cultural, paper: PAPER[mode] || [],
     };
+  }
+
+  /** 描金靈位 · 長明燈（付費，P1）。只改外觀，不影響免費靈位的保存。 */
+  setPermanent(tabletId, on) {
+    const tb = this.store.get('tablets', tabletId);
+    if (!tb) return null;
+    tb.permanent = !!on;
+    this.store.put('tablets', tb.id, tb);
+    return tb;
   }
 
   photo(user, hallId, tabletId) {

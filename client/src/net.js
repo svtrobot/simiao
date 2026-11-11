@@ -115,6 +115,7 @@ export class RoomClient extends EventTarget {
       }
       case 'stats': this._emit('stats', msg); break;
       case 'merit': this._emit('merit', msg); break;
+      case 'bag': this._emit('bag', msg); break;
       case 'fix': this._emit('fix', msg); break;
       case 'err': this._emit('error', msg); break;
       default: break;

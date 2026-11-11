@@ -215,12 +215,13 @@ export function createAncestors(game, { mode, slug }) {
       const k = o.mine ? t('anc.me') : o.name;
       names.set(k, [...(names.get(k) || []), t(`anc.offer.${o.kind}`)]);
     }
-    const burned = Object.entries(tb.today.burned || {}).filter(([, n]) => n > 0).map(([k, n]) => t('anc.burnedN', t(`anc.paper.${k}`), n));
+    const burned = Object.entries(tb.today.burned || {}).filter(([, n]) => n > 0).map(([k, n]) => t(PAID[k] ? 'anc.burnedItem' : 'anc.burnedN', t(`anc.paper.${k}`), n));
     const today = [...names].map(([n, ks]) => `${n} ${ks.join('、')}`);
     if (burned.length) today.push(burned.join('、'));
     $('anc-today').textContent = today.length ? t('anc.todayList', today.join('；')) : t('anc.nobodyYet');
     $('anc-burn-btn').hidden = !hall.paper.length;
     $('anc-edit').hidden = !tb.canEdit;
+    $('anc-gild').hidden = tb.permanent || !game.shop?.enabled();
 
     const ul = $('anc-notes');
     ul.textContent = '';
@@ -295,22 +296,27 @@ export function createAncestors(game, { mode, slug }) {
     const tb = tablet(sel);
     if (!tb || !hall.paper.length) return;
     burn.on = true; burn.tablet = tb.id;
-    burn.kind = burn.kind && hall.paper.includes(burn.kind) ? burn.kind : hall.paper[0];
+    const kinds = paperKinds();
+    burn.kind = burn.kind && kinds.includes(burn.kind) ? burn.kind : hall.paper[0];
     $('anc-sheet').hidden = true; $('anc-bar').hidden = true; $('anc-burn').hidden = false;
     $('anc-burn-for').textContent = t('anc.burnFor', who(tb));
     const box = $('anc-papers');
     box.textContent = '';
-    for (const k of hall.paper) {
+    for (const k of kinds) {
       const b = document.createElement('button');
       b.type = 'button'; b.setAttribute('role', 'radio'); b.dataset.kind = k;
-      b.textContent = t(`anc.paper.${k}`);
+      b.textContent = PAID[k] ? `${t(`anc.paper.${k}`)} ×${hall.bag[PAID[k]]}` : t(`anc.paper.${k}`);
       b.onclick = () => { burn.kind = k; paintPapers(); };
       box.appendChild(b);
     }
     paintPapers();
+    $('anc-paper-shop').hidden = !game.shop?.enabled();
     room.setView('burn');
     countLine();
   }
+  // 付費紙紮: kinds the family member holds in their bag (used up one by one)
+  const PAID = { house: 'paper_house', car: 'paper_car', clothes: 'paper_clothes' };
+  function paperKinds() { return [...hall.paper, ...Object.keys(PAID).filter((k) => (hall.bag?.[PAID[k]] || 0) > 0)]; }
   function paintPapers() {
     for (const b of $('anc-papers').children) b.setAttribute('aria-checked', String(b.dataset.kind === burn.kind));
     $('anc-stack').dataset.kind = burn.kind;
@@ -332,12 +338,18 @@ export function createAncestors(game, { mode, slug }) {
 
   /** A sheet went into the fire (ndc = where it was let go). */
   function putSheet(ndc) {
+    const item = PAID[burn.kind];
+    if (item) {
+      if (!(hall.bag?.[item] > 0)) { toast(t('shop.noItem')); return; }
+      hall.bag[item] -= 1;
+    }
     room.burn(burn.kind, ndc);
     audio.crackle(0.12);
     burn.pending += 1;
     burn.kinds = burn.kinds || {};
     burn.kinds[burn.kind] = (burn.kinds[burn.kind] || 0) + 1;
     countLine();
+    if (item) startBurn(); // repaint the counts; falls back to free paper when the last one is gone
     clearTimeout(burn.timer);
     if (burn.pending >= 3) flushBurn(); else burn.timer = setTimeout(flushBurn, 2200);
   }
@@ -356,6 +368,7 @@ export function createAncestors(game, { mode, slug }) {
           const r = await api('POST', `/api/ancestors/${hall.id}/tablets/${tid}/burn${q}`, { kind, n });
           const tb = tablet(tid);
           if (tb) tb.today.burned = r.burned;
+          if (r.bag) { if (!burn.pending) hall.bag = r.bag; game.shop?.setBag(r.bag); }
         } catch (e) {
           if (e.status === 429) { burn.kinds[kind] = (burn.kinds[kind] || 0) + n; burn.pending += n; }
         }
@@ -566,6 +579,12 @@ export function createAncestors(game, { mode, slug }) {
   $('anc-sheet-close').onclick = () => selectTablet(null);
   $('anc-edit').onclick = () => openForm(sel);
   $('anc-burn-btn').onclick = startBurn;
+  const reloadHall = async () => { await load(hall.id); room.setTablets(hall.tablets); render(); };
+  $('anc-gild').onclick = () => game.shop.open({ context: 'tablet', target: { hallId: hall.id, tabletId: sel }, onDone: reloadHall });
+  $('anc-paper-shop').onclick = async () => {
+    await flushBurn();
+    game.shop.open({ context: 'paper', onDone: async () => { await load(hall.id); if (burn.on) startBurn(); } });
+  };
   $('anc-burn-done').onclick = async () => { await flushBurn(); stopBurn(); };
   $('anc-note-form').onsubmit = sendNote;
   $('anc-form').onsubmit = submitForm;
