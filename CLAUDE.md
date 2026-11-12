@@ -13,7 +13,7 @@
 
 ```bash
 npm start            # http://localhost:8787 （Node ≥ 20，零 npm 依赖）
-npm test             # 69 项测试（其中 5 项需要真的 PostgreSQL / Redis，没设 TEST_DATABASE_URL 时跳过），必须全部通过再提交
+npm test             # 70 项测试（其中 5 项需要真的 PostgreSQL / Redis，没设 TEST_DATABASE_URL 时跳过），必须全部通过再提交
 npm run loadtest     # 压测
 docker compose up -d --build   # 容器方式（单实例）
 docker compose -f docker-compose.cluster.yml up -d --build   # PostgreSQL + Redis + 两实例 + Nginx（:8797）

@@ -307,8 +307,9 @@ export function getLocale() { return locale; }
 let culture = '';
 export function setCulture(c) { culture = c || ''; }
 export function t(key, ...args) {
-  const ck = culture && `${key}@${culture}`;
-  const v = (ck && (T[locale][ck] ?? T['zh-Hant'][ck])) ?? T[locale][key] ?? T['zh-Hant'][key] ?? key;
+  // no culture yet (the intro screen): ck must be null, not '' — an empty string would win the ?? chain
+  const ck = culture ? `${key}@${culture}` : null;
+  const v = (ck ? (T[locale][ck] ?? T['zh-Hant'][ck]) : undefined) ?? T[locale][key] ?? T['zh-Hant'][key] ?? key;
   return typeof v === 'function' ? v(...args) : v;
 }
 export function applyI18n(root = document) {
