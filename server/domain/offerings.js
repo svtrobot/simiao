@@ -4,14 +4,22 @@
 import { dayKey, newId, HttpError } from './util.js';
 import { crisisSignal, ugcRejectReason } from './compliance.js';
 
+export const WALL = 60;
+
 export class OfferingService {
-  constructor({ store, tz, hotline, shard = '' }) { this.store = store; this.tz = tz; this.hotline = hotline; this.shard = shard; }
+  constructor({ store, tz, hotline, shard = '' }) {
+    this.store = store; this.tz = tz; this.hotline = hotline; this.shard = shard;
+    // the wall is "the newest public wishes of this temple": kept sorted, never scanned (store/indexes.js)
+    store.index('wishes', 'wall', (w) => (w.visibility === 'public' ? w.templeId : null), { order: (w) => w.createdAt, limit: WALL });
+    store.index('wishes', 'user', (w) => w.userId);
+    store.index('incense_daily', 'shards', (d) => (d.shard ? `${d.templeId}:${d.day}` : null));
+  }
 
   incenseToday(templeId, now = Date.now()) {
     const day = dayKey(this.tz, now);
     const single = this.store.get('incense_daily', `${templeId}:${day}`)?.count || 0;
     if (!this.shard) return single;
-    return single + this.store.list('incense_daily', (d) => d.templeId === templeId && d.day === day && d.shard).reduce((n, d) => n + d.count, 0);
+    return single + this.store.by('incense_daily', 'shards', `${templeId}:${day}`).reduce((n, d) => n + d.count, 0);
   }
 
   addIncense(templeId, sticks = 3, now = Date.now()) {
@@ -39,9 +47,8 @@ export class OfferingService {
     return { wish, support: crisis ? this.hotline : null };
   }
 
-  wall(templeId, limit = 60, viewerId = null) {
-    return this.store.list('wishes', (w) => w.templeId === templeId && w.visibility === 'public')
-      .sort((a, b) => b.createdAt - a.createdAt).slice(0, limit)
+  wall(templeId, limit = WALL, viewerId = null) {
+    return this.store.by('wishes', 'wall', templeId).slice(0, Math.min(limit, WALL))
       .map(({ id, name, text, rejoice, createdAt, userId }) => ({ id, name, text, rejoice, createdAt, mine: !!viewerId && userId === viewerId }));
   }
 

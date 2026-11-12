@@ -3,17 +3,9 @@ import assert from 'node:assert/strict';
 import { Festivals } from '../server/domain/festival.js';
 import { AncestorService } from '../server/domain/ancestors.js';
 import { startApp } from './helpers.js';
+import { JsonStore } from '../server/store/jsonStore.js';
 
-const mem = () => {
-  const cols = new Map();
-  const col = (c) => (cols.has(c) || cols.set(c, new Map()), cols.get(c));
-  return {
-    get: (c, id) => col(c).get(id) ?? null,
-    list: (c, f = () => true) => [...col(c).values()].filter(f),
-    put: (c, id, d) => (col(c).set(id, d), d),
-    remove: (c, id) => col(c).delete(id),
-  };
-};
+const mem = () => new JsonStore(null);
 const at = (d) => Date.parse(`${d}T04:00:00Z`); // noon in Taipei
 const fests = () => new Festivals({ contentDir: 'content', tz: 'Asia/Taipei' });
 

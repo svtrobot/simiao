@@ -2,6 +2,8 @@
 //   PgLedger    PostgreSQL 的 orders 表，狀態轉移用條件 UPDATE（pending → paid 只會成功一次）
 //   JsonLedger  單機模式，寫在文檔存儲的 orders 集合裡（單進程，沒有並發問題）
 // 兩者介面相同、皆為 async。金額一律是最小貨幣單位的整數。
+import { withSchemaLock } from './pgStore.js';
+
 const ORDERS_SCHEMA = `
 CREATE TABLE IF NOT EXISTS orders (
   id text PRIMARY KEY,
@@ -32,7 +34,7 @@ const COLS = 'id, user_id, sku, amount::text, currency, status, provider, provid
 
 export class PgLedger {
   constructor(pg) { this.pg = pg; }
-  async ready() { await this.pg.exec(ORDERS_SCHEMA); return this; }
+  async ready() { await this.pg.exec(withSchemaLock(ORDERS_SCHEMA)); return this; }
 
   async create(o) {
     await this.pg.query(
@@ -79,7 +81,7 @@ export class PgLedger {
 }
 
 export class JsonLedger {
-  constructor(store) { this.store = store; }
+  constructor(store) { this.store = store; store.index('orders', 'user', (o) => o.userId); }
   async ready() { return this; }
   async create(o) {
     const order = { ...o, status: 'pending', providerRef: null, paidAt: null, refundedAt: null, granted: false, refundReason: null };
@@ -109,7 +111,7 @@ export class JsonLedger {
   }
   async setRef(id, ref) { const o = this.store.get('orders', id); if (o) { o.providerRef = ref; this.store.put('orders', id, o); } }
   async byUser(userId, limit = 30) {
-    return this.store.list('orders', (o) => o.userId === userId).sort((a, b) => b.createdAt - a.createdAt).slice(0, limit).map((o) => ({ ...o }));
+    return this.store.by('orders', 'user', userId).sort((a, b) => b.createdAt - a.createdAt).slice(0, limit).map((o) => ({ ...o }));
   }
   async list({ status = null, userId = null, limit = 100 } = {}) {
     return this.store.list('orders', (o) => (!status || o.status === status) && (!userId || o.userId === userId)).sort((a, b) => b.createdAt - a.createdAt).slice(0, limit).map((o) => ({ ...o }));
@@ -124,6 +126,6 @@ export class JsonLedger {
     return [...by.values()];
   }
   async paidSince(userId, currency, since) {
-    return this.store.list('orders', (o) => o.userId === userId && o.currency === currency && o.status === 'paid' && o.paidAt >= since).reduce((n, o) => n + o.amount, 0);
+    return this.store.by('orders', 'user', userId).filter((o) => o.currency === currency && o.status === 'paid' && o.paidAt >= since).reduce((n, o) => n + o.amount, 0);
   }
 }

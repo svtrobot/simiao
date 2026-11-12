@@ -9,6 +9,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { metrics } from '../metrics.js';
+import { Indexes } from './indexes.js';
+
+const BLOB_ID = /^[A-Za-z0-9_-]{1,80}$/;
 
 const COMPACT_MIN = 4 * 1024 * 1024; // don't bother compacting small logs
 
@@ -21,6 +24,8 @@ export class JsonStore {
     this.dirty = new Map();   // col → Set(ids changed since the last flush)
     this.sizes = new Map();   // col → { snap, log } bytes on disk
     this.timer = null;
+    this.indexes = new Indexes((name) => this._col(name));
+    this.memBlobs = new Map();  // only when there is no dir (tests)
     if (dir) fs.mkdirSync(dir, { recursive: true });
   }
 
@@ -62,14 +67,40 @@ export class JsonStore {
 
   get(col, id) { return this._col(col).get(id) ?? null; }
   list(col, filter = () => true) { return [...this._col(col).values()].filter(filter); }
-  put(col, id, doc) { this._col(col).set(id, doc); this._touch(col, id); return doc; }
+  put(col, id, doc) { this._col(col).set(id, doc); this.indexes.changed(col, id, doc); this._touch(col, id); return doc; }
   update(col, id, fn) {
     const cur = this.get(col, id);
     const next = fn(cur);
     if (next === undefined) return cur;
     return this.put(col, id, next);
   }
-  remove(col, id) { const ok = this._col(col).delete(id); if (ok) this._touch(col, id); return ok; }
+  remove(col, id) { const ok = this._col(col).delete(id); if (ok) { this.indexes.changed(col, id, null); this._touch(col, id); } return ok; }
+
+  /** Secondary indexes: see store/indexes.js. */
+  index(col, name, keyFn, opts) { this.indexes.define(col, name, keyFn, opts); }
+  by(col, name, key) { return this.indexes.by(col, name, key); }
+
+  // ---- blobs: big values (靈位照片) that are read on demand and never held in memory ----
+  // One file each under <dir>/blobs/<col>/. Same async interface as PgStore.
+  _blob(col, id) {
+    if (!BLOB_ID.test(col) || !BLOB_ID.test(id)) throw new Error('bad blob key');
+    return path.join(this.dir, 'blobs', col, id);
+  }
+  async getBlob(col, id) {
+    if (!this.dir) return this.memBlobs.get(`${col}/${id}`) ?? null;
+    try { return fs.readFileSync(this._blob(col, id), 'utf8'); } catch (e) { if (e.code === 'ENOENT') return null; throw e; }
+  }
+  async putBlob(col, id, text) {
+    if (!this.dir) { this.memBlobs.set(`${col}/${id}`, text); return; }
+    const f = this._blob(col, id), tmp = `${f}.tmp`;
+    fs.mkdirSync(path.dirname(f), { recursive: true });
+    fs.writeFileSync(tmp, text);
+    fs.renameSync(tmp, f);
+  }
+  async removeBlob(col, id) {
+    if (!this.dir) { this.memBlobs.delete(`${col}/${id}`); return; }
+    try { fs.unlinkSync(this._blob(col, id)); } catch (e) { if (e.code !== 'ENOENT') throw e; }
+  }
 
   _touch(col, id) {
     if (!this.dir || this.ephemeral.has(col)) return;

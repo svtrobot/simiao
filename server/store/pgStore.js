@@ -13,6 +13,7 @@
 //
 // Collections listed in `ephemeral` (e.g. WebAuthn challenges) are replicated but never written to PostgreSQL.
 import { metrics } from '../metrics.js';
+import { Indexes } from './indexes.js';
 
 export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS docs (
@@ -25,7 +26,19 @@ CREATE TABLE IF NOT EXISTS docs (
   PRIMARY KEY (col, id)
 );
 CREATE INDEX IF NOT EXISTS docs_updated_at ON docs (updated_at);
+CREATE TABLE IF NOT EXISTS blobs (
+  col text NOT NULL,
+  id text NOT NULL,
+  body text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (col, id)
+);
 `;
+/**
+ * Two instances starting together on an empty database would both run CREATE TABLE IF NOT EXISTS and one
+ * would fail (a PostgreSQL race on the catalog). An advisory lock makes schema creation take turns.
+ */
+export const withSchemaLock = (sql) => `BEGIN; SELECT pg_advisory_xact_lock(7316001); ${sql.trim().replace(/;$/, '')}; COMMIT;`;
 const UPSERT = `
 INSERT INTO docs (col, id, doc, v, writer, updated_at)
 SELECT x->>'c', x->>'k', x->'d', (x->>'v')::bigint, x->>'w', now() FROM jsonb_array_elements($1::jsonb) x
@@ -54,13 +67,15 @@ export class PgStore {
     this.vers = new Map();      // `${col}\0${id}` → [version, writer]
     this.dirty = new Set();     // keys changed locally since the last flush
     this.listeners = [];
+    this.indexes = new Indexes((name) => this._col(name));
+    this.blobWrites = new Map(); // `${col}/${id}` → text | null while the write is on its way
     this.timer = null; this.flushing = null; this.pollTimer = null; this.closed = false;
   }
 
   // ---------------------------------------------------------------- boot
 
   async ready() {
-    await this.pg.exec(SCHEMA);
+    await this.pg.exec(withSchemaLock(SCHEMA));
     const early = [];
     let live = false;
     if (this.sub) {
@@ -121,14 +136,36 @@ export class PgStore {
 
   get(col, id) { return this._col(col).get(id) ?? null; }
   list(col, filter = () => true) { return [...this._col(col).values()].filter(filter); }
-  put(col, id, doc) { this._col(col).set(id, doc); this._touch(col, id); return doc; }
+  put(col, id, doc) { this._col(col).set(id, doc); this.indexes.changed(col, id, doc); this._touch(col, id); return doc; }
   update(col, id, fn) {
     const cur = this.get(col, id);
     const next = fn(cur);
     if (next === undefined) return cur;
     return this.put(col, id, next);
   }
-  remove(col, id) { const ok = this._col(col).delete(id); if (ok) this._touch(col, id); return ok; }
+  remove(col, id) { const ok = this._col(col).delete(id); if (ok) { this.indexes.changed(col, id, null); this._touch(col, id); } return ok; }
+
+  /** Secondary indexes: see store/indexes.js. */
+  index(col, name, keyFn, opts) { this.indexes.define(col, name, keyFn, opts); }
+  by(col, name, key) { return this.indexes.by(col, name, key); }
+
+  // ---- blobs: big values (靈位照片) read from PostgreSQL on demand, never held in memory or sent over Redis ----
+  async getBlob(col, id) {
+    const key = `${col}/${id}`;
+    if (this.blobWrites.has(key)) return this.blobWrites.get(key);
+    const { rows } = await this.pg.query('SELECT body FROM blobs WHERE col = $1 AND id = $2', [col, id]);
+    return rows.length ? rows[0].body : null;
+  }
+  async _blobWrite(col, id, text) {
+    const key = `${col}/${id}`;
+    this.blobWrites.set(key, text);
+    try {
+      if (text === null) await this.pg.query('DELETE FROM blobs WHERE col = $1 AND id = $2', [col, id]);
+      else await this.pg.query('INSERT INTO blobs (col, id, body) VALUES ($1, $2, $3) ON CONFLICT (col, id) DO UPDATE SET body = EXCLUDED.body, updated_at = now()', [col, id, text]);
+    } finally { if (this.blobWrites.get(key) === text) this.blobWrites.delete(key); }
+  }
+  putBlob(col, id, text) { return this._blobWrite(col, id, text); }
+  removeBlob(col, id) { return this._blobWrite(col, id, null); }
 
   _touch(col, id) {
     const key = `${col}\0${id}`;
@@ -155,6 +192,7 @@ export class PgStore {
       const cur = col.get(k);
       if (cur && typeof cur === 'object' && typeof d === 'object') assignInPlace(cur, d); else col.set(k, d);
     }
+    this.indexes.changed(c, k, d === null ? null : col.get(k));
     if (!quiet) for (const fn of this.listeners) { try { fn(c, k, d === null ? null : col.get(k)); } catch (e) { console.error('[store] onRemote listener failed:', e.message); } }
     return true;
   }

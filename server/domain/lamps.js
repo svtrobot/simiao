@@ -8,6 +8,8 @@ export const LAMP_DAYS = 7;
 export const RENEW_WINDOW_DAYS = 2;
 export const MAX_ACTIVE = 3;
 const DAY = 86400000;
+const COUNT_MS = 3000;
+export const ARCHIVE_DAYS = 2;         // mine() still shows a lamp for a day after it goes out
 
 /**
  * Lamp kinds per compliance mode. In 'cultural' mode (mainland, or a temple set to
@@ -29,17 +31,45 @@ export function maskName(name) {
 const clean = (s, max) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
 export class LampService {
-  constructor({ store, hotline }) { this.store = store; this.hotline = hotline; }
+  constructor({ store, hotline }) {
+    this.store = store; this.hotline = hotline;
+    this.counts = new Map();   // templeId → { at, n }
+    store.index('lamps', 'temple', (l) => l.templeId);
+    store.index('lamps', 'user', (l) => l.userId);
+    store.index('lamps', 'card', (l) => l.cardId);
+  }
+
+  /**
+   * Lamps that went out more than ARCHIVE_DAYS ago leave the working collection for `lamps_old`
+   * (kept, not deleted: a 祈福卡 link still answers "這盞燈已經熄了"). Without this every lamp ever lit
+   * would be walked each time a hall asks which lamps are burning.
+   */
+  archive(now = Date.now()) {
+    let n = 0;
+    for (const l of this.store.list('lamps', (x) => x.expiresAt < now - ARCHIVE_DAYS * DAY)) {
+      this.store.put('lamps_old', l.id, l);
+      this.store.remove('lamps', l.id);
+      n += 1;
+    }
+    return n;
+  }
 
   active(templeId, now = Date.now()) {
-    return this.store.list('lamps', (l) => l.templeId === templeId && l.expiresAt > now)
+    return this.store.by('lamps', 'temple', templeId).filter((l) => l.expiresAt > now)
       .sort((a, b) => a.litAt - b.litAt);
   }
 
-  count(templeId, now = Date.now()) { return this.active(templeId, now).length; }
+  /** How many lamps burn in this temple. Rooms ask every few seconds, so the answer is kept for a moment. */
+  count(templeId, now = Date.now()) {
+    const memo = this.counts.get(templeId);
+    if (memo && Math.abs(now - memo.at) < COUNT_MS) return memo.n;
+    const n = this.store.by('lamps', 'temple', templeId).filter((l) => l.expiresAt > now).length;
+    this.counts.set(templeId, { at: now, n });
+    return n;
+  }
 
   mine(userId, now = Date.now()) {
-    return this.store.list('lamps', (l) => l.userId === userId && l.expiresAt > now - DAY)
+    return this.store.by('lamps', 'user', userId).filter((l) => l.expiresAt > now - DAY)
       .sort((a, b) => b.litAt - a.litAt);
   }
 
@@ -60,7 +90,7 @@ export class LampService {
       const reason = ugcRejectReason(text);
       if (reason) throw new HttpError(422, 'lamp_rejected', { reason });
     }
-    if (this.store.list('lamps', (l) => l.userId === user.id && l.expiresAt > now).length >= MAX_ACTIVE) {
+    if (this.store.by('lamps', 'user', user.id).filter((l) => l.expiresAt > now).length >= MAX_ACTIVE) {
       throw new HttpError(429, 'lamp_limit', { max: MAX_ACTIVE });
     }
     // 涉及自傷念頭：燈照樣點亮，但心願不公開，只回給本人溫和的話與熱線（8.4）
@@ -72,6 +102,7 @@ export class LampService {
       litAt: now, expiresAt: now + LAMP_DAYS * DAY, renewed: 0,
     };
     this.store.put('lamps', lamp.id, lamp);
+    this.counts.delete(templeId);
     return { lamp: this.ownerView(lamp, now), support: crisis ? this.hotline : null };
   }
 
@@ -114,7 +145,11 @@ export class LampService {
    * wish even if it is kept off the public wall (the card is meant for that person).
    */
   card(cardId, now = Date.now()) {
-    const l = this.store.list('lamps', (x) => x.cardId === cardId)[0];
+    let l = cardId ? this.store.by('lamps', 'card', cardId)[0] : null;
+    if (!l && cardId) {
+      this.store.index('lamps_old', 'card', (x) => x.cardId); // declared on first use: JsonStore only loads this collection now
+      l = this.store.by('lamps_old', 'card', cardId)[0];
+    }
     if (!l) throw new HttpError(404, 'not_found');
     return {
       lampId: l.id, templeId: l.templeId, kind: l.kind, forName: l.hidden ? maskName(l.forName) : l.forName, fromName: l.fromName,

@@ -136,12 +136,16 @@ export function upcoming(tablets, today, { days = 30, tz } = {}) {
 export class AncestorService {
   constructor({ store, tz, hotline, useItem = null, festivals = null }) {
     Object.assign(this, { store, tz, hotline, useItem, festivals });
+    // lookups instead of scans (store/indexes.js)
+    store.index('families', 'member', (f) => f.members.map((m) => m.userId));
+    store.index('families', 'invite', (f) => f.invite);
+    store.index('tablets', 'family', (t) => t.familyId);
     this.statsMemo = { at: 0, key: '', value: null };
   }
 
   // ---------------------------------------------------------------- halls
 
-  hallsOf(user) { return this.store.list('families', (f) => f.members.some((m) => m.userId === user.id)); }
+  hallsOf(user) { return this.store.by('families', 'member', user.id); }
 
   hall(user, id) {
     const f = this.store.get('families', id);
@@ -150,7 +154,7 @@ export class AncestorService {
   }
 
   tablets(hallId) {
-    return this.store.list('tablets', (t) => t.familyId === hallId).sort((a, b) => a.order - b.order || a.createdAt - b.createdAt);
+    return this.store.by('tablets', 'family', hallId).sort((a, b) => a.order - b.order || a.createdAt - b.createdAt);
   }
 
   list(user) {
@@ -182,14 +186,14 @@ export class AncestorService {
 
   /** What someone holding an invite link sees before joining: no tablet names, no photos. */
   invitePreview(code) {
-    const f = code && this.store.list('families', (x) => x.invite === code)[0];
+    const f = code && this.store.by('families', 'invite', code)[0];
     if (!f) throw new HttpError(404, 'invite_not_found');
     const owner = f.members.find((m) => m.userId === f.ownerId);
     return { name: f.name, ownerName: owner?.name || '', members: f.members.length, tablets: this.tablets(f.id).length };
   }
 
   join(user, code, now = Date.now()) {
-    const f = code && this.store.list('families', (x) => x.invite === code)[0];
+    const f = code && this.store.by('families', 'invite', code)[0];
     if (!f) throw new HttpError(404, 'invite_not_found');
     if (f.members.some((m) => m.userId === user.id)) return { id: f.id, already: true };
     if (f.members.length >= MAX_MEMBERS) throw new HttpError(429, 'member_limit', { max: MAX_MEMBERS });
@@ -224,7 +228,7 @@ export class AncestorService {
     const f = this.hall(user, hallId);
     const list = this.tablets(f.id);
     if (list.length >= MAX_TABLETS) throw new HttpError(429, 'tablet_limit', { max: MAX_TABLETS });
-    const tb = { id: newId(8), familyId: f.id, createdBy: user.id, createdAt: now, order: list.length, notes: [], photo: null, photoV: 0 };
+    const tb = { id: newId(8), familyId: f.id, createdBy: user.id, createdAt: now, order: list.length, notes: [], hasPhoto: false, photoV: 0 };
     this.fill(tb, body, now);
     this.store.put('tablets', tb.id, tb);
     return tb;
@@ -240,6 +244,7 @@ export class AncestorService {
   removeTablet(user, hallId, tabletId) {
     const tb = this.tabletFor(user, hallId, tabletId, { edit: true });
     this.store.remove('tablets', tb.id);
+    this.blob(this.store.removeBlob('photos', tb.id));
     return { ok: true };
   }
 
@@ -262,12 +267,14 @@ export class AncestorService {
     if (!died) throw new HttpError(422, 'death_date_required');
     const born = body.born !== undefined ? parseBirth(body.born, died.date) : tb.born ?? null;
     if (body.photo !== undefined) {
-      if (body.photo === null || body.photo === '') tb.photo = null;
+      // The photo itself lives in the blob store (read on demand); the tablet only remembers that it has one.
+      if (body.photo === null || body.photo === '') { tb.hasPhoto = false; this.blob(this.store.removeBlob('photos', tb.id)); }
       else {
         const p = String(body.photo);
         if (!/^data:image\/(jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(p) || p.length > PHOTO_MAX) throw new HttpError(422, 'invalid_photo');
-        tb.photo = p;
+        tb.hasPhoto = true; this.blob(this.store.putBlob('photos', tb.id, p));
       }
+      delete tb.photo; // the pre-blob field, if this tablet still carried it
       tb.photoV = (tb.photoV || 0) + 1;
     }
     Object.assign(tb, { name, relation, epitaph, died, born });
@@ -385,7 +392,7 @@ export class AncestorService {
     if (!text) throw new HttpError(422, 'empty');
     checkText(text);
     const date = dayKey(this.tz, now);
-    const notesToday = this.store.list('tablets', (x) => x.familyId === tb.familyId)
+    const notesToday = this.tablets(tb.familyId)
       .reduce((n, x) => n + x.notes.filter((o) => o.userId === user.id && dayKey(this.tz, o.at) === date).length, 0);
     if (notesToday >= NOTE_DAILY) throw new HttpError(429, 'note_limit', { max: NOTE_DAILY });
     const crisis = crisisSignal(text);
@@ -444,7 +451,7 @@ export class AncestorService {
     return {
       id: tb.id, name: tb.name, relation: tb.relation, epitaph: tb.epitaph, born: tb.born,
       died: tb.died.lunar ? { date: tb.died.date, lunar: true, ly: tb.died.ly, lm: tb.died.lm, ld: tb.died.ld, leap: tb.died.leap } : { date: tb.died.date, lunar: false },
-      photoV: tb.photo ? tb.photoV : 0, permanent: !!tb.permanent,
+      photoV: tb.hasPhoto || tb.photo ? tb.photoV : 0, permanent: !!tb.permanent,
       swept: ((s) => (s ? (tb.sweeps?.[s.key] || []).map((x) => ({ name: x.name, mine: x.userId === viewer.id })) : []))(this.season(now)),
       canEdit: tb.createdBy === viewer.id || f.ownerId === viewer.id,
       today: {
@@ -478,10 +485,27 @@ export class AncestorService {
     return tb;
   }
 
-  photo(user, hallId, tabletId) {
+  /** Blob writes are started inside synchronous methods; a failure is logged, the tablet itself is already saved. */
+  blob(promise) { promise.catch((e) => console.error('[ancestors] photo storage failed:', e.message)); }
+
+  async photo(user, hallId, tabletId) {
     const tb = this.tabletFor(user, hallId, tabletId);
-    if (!tb.photo) throw new HttpError(404, 'no_photo');
-    return { photo: tb.photo, v: tb.photoV };
+    if (tb.photo) await this.movePhoto(tb);
+    const photo = tb.hasPhoto ? await this.store.getBlob('photos', tb.id) : null;
+    if (!photo) throw new HttpError(404, 'no_photo');
+    return { photo, v: tb.photoV };
+  }
+
+  /** Tablets saved before photos moved out of the document: put the photo in the blob store, drop it from the document. */
+  async movePhoto(tb) {
+    await this.store.putBlob('photos', tb.id, tb.photo);
+    tb.hasPhoto = true; delete tb.photo;
+    this.store.put('tablets', tb.id, tb);
+  }
+  async movePhotos() {
+    let n = 0;
+    for (const tb of this.store.list('tablets', (t) => !!t.photo)) { await this.movePhoto(tb); n += 1; }
+    return n;
   }
 
   /** Reminders across every hall this person belongs to (shown on entering the temple). */

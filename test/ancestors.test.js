@@ -2,17 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AncestorService, upcoming, parseDeath, BURN_MS, BURN_BURST } from '../server/domain/ancestors.js';
 import { startApp } from './helpers.js';
+import { JsonStore } from '../server/store/jsonStore.js';
 
-const mem = () => {
-  const cols = new Map();
-  const col = (c) => (cols.has(c) || cols.set(c, new Map()), cols.get(c));
-  return {
-    get: (c, id) => col(c).get(id) ?? null,
-    list: (c, f = () => true) => [...col(c).values()].filter(f),
-    put: (c, id, d) => (col(c).set(id, d), d),
-    remove: (c, id) => col(c).delete(id),
-  };
-};
+const mem = () => new JsonStore(null);
 const svc = () => new AncestorService({ store: mem(), tz: 'Asia/Taipei', hotline: { name: '1925' } });
 const NOV10 = Date.parse('2026-11-10T04:00:00Z'); // noon in Taipei
 

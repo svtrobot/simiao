@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { JsonStore } from '../server/store/jsonStore.js';
 import { PgClient } from '../server/store/pg.js';
-import { SCHEMA } from '../server/store/pgStore.js';
+import { SCHEMA, withSchemaLock } from '../server/store/pgStore.js';
 
 const dir = process.env.DATA_DIR || path.resolve('data');
 const url = process.env.DATABASE_URL;
@@ -16,7 +16,7 @@ if (!fs.existsSync(dir)) { console.error(`no data folder at ${dir}`); process.ex
 const cols = [...new Set(fs.readdirSync(dir).filter((f) => /\.(json|log)$/.test(f)).map((f) => f.replace(/\.(json|log)$/, '')))];
 const store = new JsonStore(dir);
 const pg = new PgClient(url);
-await pg.exec(SCHEMA);
+await pg.exec(withSchemaLock(SCHEMA));
 let total = 0, added = 0;
 for (const col of cols) {
   const docs = [...store._col(col)];
@@ -30,5 +30,17 @@ for (const col of cols) {
   total += docs.length;
   console.log(`${col}: ${docs.length}`);
 }
+// blobs (靈位照片): <dir>/blobs/<col>/<id> → the blobs table
+let blobs = 0;
+const blobDir = path.join(dir, 'blobs');
+if (fs.existsSync(blobDir)) {
+  for (const col of fs.readdirSync(blobDir)) {
+    for (const id of fs.readdirSync(path.join(blobDir, col))) {
+      if (id.endsWith('.tmp')) continue;
+      const { count } = await pg.query('INSERT INTO blobs (col, id, body) VALUES ($1, $2, $3) ON CONFLICT (col, id) DO NOTHING', [col, id, fs.readFileSync(path.join(blobDir, col, id), 'utf8')]);
+      blobs += count;
+    }
+  }
+}
 await pg.close();
-console.log(`done: ${added} of ${total} documents copied (the rest were already there)`);
+console.log(`done: ${added} of ${total} documents copied (the rest were already there); ${blobs} photos copied`);

@@ -98,6 +98,7 @@ export class AccountService {
    */
   constructor({ store, users, publicOrigin = '' }) {
     this.store = store; this.users = users; this.publicOrigin = publicOrigin;
+    store.index('passkeys', 'user', (p) => p.userId);
     this.tries = new Map();      // ip → { n, reset }
   }
 
@@ -110,7 +111,7 @@ export class AccountService {
   }
 
   status(user) {
-    const passkeys = this.store.list('passkeys', (p) => p.userId === user.id)
+    const passkeys = this.store.by('passkeys', 'user', user.id)
       .sort((a, b) => a.createdAt - b.createdAt)
       .map((p) => ({ id: p.id, label: p.label, createdAt: p.createdAt, lastUsed: p.lastUsed || null }));
     const recovery = user.account?.recoveryAt || null;
@@ -174,7 +175,7 @@ export class AccountService {
 
   registerOptions(user, req, now = Date.now()) {
     const site = this.site(req);
-    const mine = this.store.list('passkeys', (p) => p.userId === user.id);
+    const mine = this.store.by('passkeys', 'user', user.id);
     return {
       challenge: this.challenge('create', user.id, now),
       rp: { id: site.rpId, name: '雲上寺' },
@@ -189,7 +190,7 @@ export class AccountService {
   /** body: { id, response: { clientDataJSON, attestationObject }, label } (all binary as base64url) */
   register(user, body, req, now = Date.now()) {
     const site = this.site(req);
-    if (this.store.list('passkeys', (p) => p.userId === user.id).length >= MAX_PASSKEYS) throw new HttpError(429, 'passkey_limit');
+    if (this.store.by('passkeys', 'user', user.id).length >= MAX_PASSKEYS) throw new HttpError(429, 'passkey_limit');
     const r = body?.response || {};
     this.consume(unb64u(r.clientDataJSON), 'create', site, user.id, now);
     const [att] = cborDecode(unb64u(r.attestationObject));

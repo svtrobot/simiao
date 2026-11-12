@@ -106,6 +106,7 @@ export class PushService {
    */
   constructor({ store, users, ancestors, daily, tz, locale, mode, subject, keys = null, transport = null }) {
     Object.assign(this, { store, users, ancestors, daily, tz, locale, mode, subject });
+    store.index('push_subs', 'user', (s) => s.userId);
     this.txt = TXT[locale] || TXT['zh-Hant'];
     this._keys = keys;
     this.transport = transport || (async (endpoint, init) => {
@@ -125,7 +126,7 @@ export class PushService {
   prefsOf(user) { return { ...DEFAULT_PREFS, ...(user.notify || {}) }; }
 
   status(user) {
-    return { devices: this.store.list('push_subs', (s) => s.userId === user.id).length, prefs: this.prefsOf(user), publicKey: this.keys().publicKey };
+    return { devices: this.store.by('push_subs', 'user', user.id).length, prefs: this.prefsOf(user), publicKey: this.keys().publicKey };
   }
 
   /** body: { subscription: { endpoint, keys: { p256dh, auth } }, tz, prefs } */
@@ -138,7 +139,7 @@ export class PushService {
     const auth = fromB64u(sub.keys?.auth, 16, 'invalid_keys');
     if (p256dh[0] !== 4) throw new HttpError(422, 'invalid_keys');
     const id = crypto.createHash('sha256').update(sub.endpoint).digest('base64url');
-    const mine = this.store.list('push_subs', (s) => s.userId === user.id && s.id !== id);
+    const mine = this.store.by('push_subs', 'user', user.id).filter((s) => s.id !== id);
     if (mine.length >= MAX_DEVICES) this.store.remove('push_subs', mine.sort((a, b) => a.createdAt - b.createdAt)[0].id);
     const prev = this.store.get('push_subs', id);
     this.store.put('push_subs', id, {
@@ -184,7 +185,7 @@ export class PushService {
   }
 
   async test(user, now = Date.now()) {
-    const subs = this.store.list('push_subs', (s) => s.userId === user.id);
+    const subs = this.store.by('push_subs', 'user', user.id);
     const msg = { title: this.txt.testTitle, body: this.txt.testBody, tag: 'test', url: '/' };
     const out = await Promise.all(subs.map((s) => this.deliver(s, msg, now)));
     return { sent: out.filter((r) => r.ok).length };

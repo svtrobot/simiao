@@ -72,6 +72,12 @@ export function createApp(overrides = {}) {
   ctx.copy = new CopyService({ texts: new CopyTexts(config.contentDir), users: ctx.users, tz: config.regionPolicy.tz });
   ctx.zen = new ZenRooms({ users: ctx.users, tz: config.regionPolicy.tz, isSeatedElsewhere: (id) => ctx.lobby.isSeated(id) });
 
+  // 大集合（docs/CLUSTER.md）：舊資料搬出工作集——內嵌在靈位裡的照片移到 blob，熄了很久的燈移到 lamps_old
+  ctx.ancestors.movePhotos().then((n) => { if (n) console.log(`  moved ${n} tablet photos out of the documents`); }).catch((e) => console.error('[store] photo move failed:', e.message));
+  const archiveLamps = () => { try { const n = ctx.lamps.archive(); if (n) console.log(`  archived ${n} lamps that went out`); } catch (e) { console.error('[store] lamp archive failed:', e.message); } };
+  archiveLamps();
+  const archiveTimer = setInterval(archiveLamps, 3600_000); archiveTimer.unref?.();
+
   const server = http.createServer(createHandler(ctx));
   const sockets = new Set();
   attachWebSocket(server, '/ws', config.ws, (ws, req, url) => {

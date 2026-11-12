@@ -15,7 +15,13 @@ const clean = (s, max) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, m
 
 export class ModerationService {
   /** @param onChange(kind, doc)  called after a public item is hidden or restored (rooms refresh their lamp wall) */
-  constructor({ store, tz, onChange = () => {} }) { Object.assign(this, { store, tz, onChange }); }
+  constructor({ store, tz, onChange = () => {} }) {
+    Object.assign(this, { store, tz, onChange });
+    store.index('wishes', 'user', (w) => w.userId);
+    store.index('lamps', 'user', (l) => l.userId);
+    store.index('families', 'member', (f) => f.members.map((m) => m.userId));
+    store.index('reports', 'author', (r) => r.authorId);
+  }
 
   // ---------------------------------------------------------------- what is public
 
@@ -85,7 +91,8 @@ export class ModerationService {
     if (!COL[kind]) throw new HttpError(422, 'invalid_kind');
     if (!['reported', 'hidden', 'all'].includes(filter)) throw new HttpError(422, 'invalid_filter');
     q = clean(q, 40);
-    let items = this.store.list(COL[kind], (d) => this.stateOf(kind, d, now) && (!authorId || d.userId === authorId)).map((d) => this.item(kind, d, now));
+    const pool = authorId ? this.store.by(COL[kind], 'user', authorId) : this.store.list(COL[kind]);
+    let items = pool.filter((d) => this.stateOf(kind, d, now)).map((d) => this.item(kind, d, now));
     if (filter === 'reported') items = items.filter((i) => i.reportStatus === 'open');
     else if (filter === 'hidden') items = items.filter((i) => i.state !== 'public');
     if (q) items = items.filter((i) => i.text.includes(q));
@@ -130,10 +137,10 @@ export class ModerationService {
     return {
       id: u.id, name: u.name, createdAt: u.createdAt, merit: u.practice.merit, minutes: Math.floor(u.practice.minutes), streak: u.practice.streak,
       muted: u.muted ? { at: u.muted.at, reason: u.muted.reason } : null,
-      wishes: this.store.list('wishes', (w) => w.userId === u.id && this.stateOf('wish', w, now)).length,
-      lamps: this.store.list('lamps', (l) => l.userId === u.id && l.expiresAt > now).length,
-      halls: this.store.list('families', (f) => f.members.some((m) => m.userId === u.id)).length,
-      reported: this.store.list('reports', (r) => r.authorId === u.id).length,
+      wishes: this.store.by('wishes', 'user', u.id).filter((w) => this.stateOf('wish', w, now)).length,
+      lamps: this.store.by('lamps', 'user', u.id).filter((l) => l.expiresAt > now).length,
+      halls: this.store.by('families', 'member', u.id).length,
+      reported: this.store.by('reports', 'author', u.id).length,
     };
   }
 
@@ -162,7 +169,7 @@ export class ModerationService {
     let hidden = 0;
     if (hideAll) {
       for (const kind of ['wish', 'lamp']) {
-        for (const d of this.store.list(COL[kind], (x) => x.userId === id && ['public', 'held'].includes(this.stateOf(kind, x, now)))) { this.hide(kind, d.id, reason, now); hidden += 1; }
+        for (const d of this.store.by(COL[kind], 'user', id).filter((x) => ['public', 'held'].includes(this.stateOf(kind, x, now)))) { this.hide(kind, d.id, reason, now); hidden += 1; }
       }
     }
     return { user: this.userRow(u, now), hidden };
