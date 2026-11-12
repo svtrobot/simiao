@@ -205,15 +205,18 @@ export function createHandler(ctx) {
     return { lot: fortune.today(users.require(token(req)).id, t.id) };
   });
 
-  route('GET', '/api/temples/:slug/wishes', (req, p) => offerings.wall(temple(p.slug).id));
+  route('GET', '/api/temples/:slug/wishes', (req, p) => offerings.wall(temple(p.slug).id, 60, users.byToken(token(req))?.id));
   route('POST', '/api/temples/:slug/wishes', async (req, p) => {
     const t = temple(p.slug);
     const u = users.require(token(req));
     const body = await readJson(req);
+    if (u.muted) throw new HttpError(403, 'muted'); // 禁言（docs/MODERATION.md）
     const out = offerings.addWish(u, t.id, body);
     ctx.creditMerit(u, 'wish');
     return { wish: { id: out.wish.id, text: out.wish.text, visibility: out.wish.visibility }, support: out.support };
   });
+  // 檢舉：只有預設理由；三個不同的人檢舉 → 先收起，等後台看（docs/MODERATION.md）
+  route('POST', '/api/report', async (req) => ctx.moderation.report(users.require(token(req)), await readJson(req)));
   route('POST', '/api/wishes/:id/rejoice', (req, p) => {
     const u = users.require(token(req));
     const out = offerings.rejoice(u, p.id);
@@ -257,7 +260,10 @@ export function createHandler(ctx) {
     const t = temple(p.slug); ritualOk(t, 'lamp');
     const u = users.require(token(req));
     const mode = ctx.modeOf(t, scenes.get(t.sceneId));
-    const out = ctx.lamps.light(u, t.id, mode, await readJson(req));
+    const lampBody = await readJson(req);
+    // 禁言的帳號仍可為自己點燈，只是燈上不能寫字
+    if (u.muted) Object.assign(lampBody, { forOther: false, forName: '', wish: '' });
+    const out = ctx.lamps.light(u, t.id, mode, lampBody);
     // only a lamp lit for someone else counts as merit (為他人祈福, 4.2)
     const merit = out.lamp.forOther ? ctx.creditMerit(u, 'lamp') : { counted: false };
     lobby.bumpLamps(t.id);
@@ -362,6 +368,20 @@ export function createHandler(ctx) {
     return { scenes: [...scenes.scenes.values()].map((s) => scenes.summary(s)), rejected: Object.fromEntries(scenes.errors) };
   });
   route('POST', '/api/admin/scenes/reload', (req) => { admin(req); scenes.load(); return { loaded: scenes.scenes.size, rejected: Object.fromEntries(scenes.errors) }; });
+  // 內容與帳號（docs/MODERATION.md）：只看公開的東西；私人家堂與不公開的心願不在這裡
+  const mod = ctx.moderation;
+  route('GET', '/api/admin/content', (req, p, url) => {
+    admin(req);
+    const q = url.searchParams;
+    return { items: mod.content({ kind: q.get('kind') || 'wish', filter: q.get('filter') || 'reported', q: q.get('q') || '', limit: Number(q.get('limit')) || 100 }), open: mod.openReports() };
+  });
+  route('POST', '/api/admin/content/:kind/:id/hide', async (req, p) => { admin(req); return { item: mod.hide(p.kind, p.id, (await readJson(req)).reason) }; });
+  route('POST', '/api/admin/content/:kind/:id/restore', (req, p) => { admin(req); return { item: mod.restore(p.kind, p.id) }; });
+  route('GET', '/api/admin/users', (req, p, url) => { admin(req); return { users: mod.users({ q: url.searchParams.get('q') || '' }) }; });
+  route('GET', '/api/admin/users/:id', (req, p) => { admin(req); return mod.user(p.id); });
+  route('POST', '/api/admin/users/:id/mute', async (req, p) => { admin(req); const b = await readJson(req); return mod.mute(p.id, { reason: b.reason, hideAll: !!b.hideAll }); });
+  route('POST', '/api/admin/users/:id/unmute', (req, p) => { admin(req); return mod.unmute(p.id); });
+  route('GET', '/api/admin/modlog', (req) => { admin(req); return { log: mod.logs() }; });
   // 訂單與退款（docs/PAYMENTS.md）。退款先退錢、再改帳、再收回道具；功德不受影響。
   route('GET', '/api/admin/orders', async (req, p, url) => {
     admin(req);

@@ -97,12 +97,13 @@ export class LampService {
 
   /** What anyone in the hall sees: masked name, no user id, wish only if public. */
   publicView(l) {
-    return { id: l.id, kind: l.kind, name: maskName(l.forName), wish: l.wishPublic ? l.wish : null, litAt: l.litAt };
+    // l.hidden ('held' | 'removed', server/domain/moderation.js): the lamp keeps burning, its words leave the wall
+    return { id: l.id, kind: l.kind, name: l.hidden ? '○○' : maskName(l.forName), wish: l.wishPublic && !l.hidden ? l.wish : null, litAt: l.litAt };
   }
 
   ownerView(l, now = Date.now()) {
     return {
-      ...this.publicView(l), forName: l.forName, wish: l.wish, wishPublic: l.wishPublic, forOther: l.forOther,
+      ...this.publicView(l), forName: l.forName, wish: l.wish, wishPublic: l.wishPublic, forOther: l.forOther, hidden: !!l.hidden,
       expiresAt: l.expiresAt, renewable: l.expiresAt > now && l.expiresAt - now <= RENEW_WINDOW_DAYS * DAY,
       cardId: l.cardId,
     };
@@ -116,8 +117,8 @@ export class LampService {
     const l = this.store.list('lamps', (x) => x.cardId === cardId)[0];
     if (!l) throw new HttpError(404, 'not_found');
     return {
-      lampId: l.id, templeId: l.templeId, kind: l.kind, forName: l.forName, fromName: l.fromName,
-      wish: l.crisis ? null : l.wish || null, litAt: l.litAt, expiresAt: l.expiresAt, lit: l.expiresAt > now,
+      lampId: l.id, templeId: l.templeId, kind: l.kind, forName: l.hidden ? maskName(l.forName) : l.forName, fromName: l.fromName,
+      wish: l.crisis || l.hidden ? null : l.wish || null, litAt: l.litAt, expiresAt: l.expiresAt, lit: l.expiresAt > now,
     };
   }
 }

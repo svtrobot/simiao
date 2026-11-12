@@ -452,3 +452,10 @@ body:has(.topbar.quiet) .fest-chip, body:has(#intro:not([hidden])) .fest-chip { 
 .anc.sweeping .anc-hit { touch-action: none; cursor: grab; }
 .anc-bar .btn-ghost { margin-left: 8px; }
 @media (prefers-reduced-motion: reduce) { .anc-sweep-bar i { transition: none; } }
+
+/* 檢舉（祈願牌） */
+.wish-list li { padding-bottom: 30px; }
+.wish-list li button.report { right: auto; left: 6px; color: #9a8468; font-size: 11px; }
+.wish-list li .report-row { position: absolute; left: 4px; right: 4px; bottom: 2px; display: flex; gap: 2px; background: #e3cfa6; border-radius: 4px; }
+.wish-list li .report-row button { position: static; flex: 1; font-size: 11px; color: #5a3a22; padding: 0 2px; }
+.wish-list li .report-row button { white-space: nowrap; }

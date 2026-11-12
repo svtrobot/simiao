@@ -359,7 +359,7 @@ export function createRituals(game) {
             toast(t('wish.done'), { gold: true }); audio.clay(0.3, 1.1);
           }
           await refreshWall();
-        } catch (err) { toast(err.body?.error === 'wish_rejected' ? t('wish.rejected') : t('err.generic')); }
+        } catch (err) { toast(err.body?.error === 'wish_rejected' ? t('wish.rejected') : err.body?.error === 'muted' ? t('wish.muted') : t('err.generic')); }
       };
       await done;
     } finally { busy = false; idle(); }
@@ -375,6 +375,24 @@ export function createRituals(game) {
         const b = document.createElement('button'); b.type = 'button'; b.textContent = `${t('wish.rejoice')} ${w.rejoice || ''}`;
         b.onclick = async () => { try { const r = await api('POST', `/api/wishes/${w.id}/rejoice`); b.textContent = `${t('wish.rejoice')} ${r.rejoice}`; b.disabled = true; } catch { b.disabled = true; } };
         li.append(who, b);
+        // 檢舉: preset reasons only; your own tablets have no such button
+        if (!w.mine) {
+          const r = document.createElement('button'); r.type = 'button'; r.className = 'report'; r.textContent = t('report.btn'); r.setAttribute('aria-label', t('report.aria'));
+          r.onclick = () => {
+            const row = document.createElement('div'); row.className = 'report-row';
+            for (const reason of ['ad', 'abuse', 'other']) {
+              const x = document.createElement('button'); x.type = 'button'; x.textContent = t(`report.${reason}`);
+              x.onclick = async () => {
+                try { await api('POST', '/api/report', { kind: 'wish', id: w.id, reason }); toast(t('report.done')); }
+                catch (err) { toast(err.status === 429 ? t('report.limit') : t('err.generic')); }
+                row.remove(); r.disabled = true;
+              };
+              row.append(x);
+            }
+            r.replaceWith(row);
+          };
+          li.append(r);
+        }
         return li;
       }));
     } catch { /* offline wall is fine */ }

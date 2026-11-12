@@ -16,6 +16,7 @@ import { PushService } from './domain/push.js';
 import { ShopService } from './domain/shop.js';
 import { providerFor } from './domain/payments.js';
 import { Festivals } from './domain/festival.js';
+import { ModerationService } from './domain/moderation.js';
 import { JsonLedger, PgLedger } from './store/ledger.js';
 import { record } from './domain/practice.js';
 import { effectiveMode, actionAllowed } from './domain/compliance.js';
@@ -62,6 +63,7 @@ export function createApp(overrides = {}) {
   });
   ctx.ancestors.useItem = (user, item, n) => ctx.shop.use(user, item, n);
   ctx.lobby = new Lobby(ctx);
+  ctx.moderation = new ModerationService({ store, tz: config.regionPolicy.tz, onChange: (kind, doc) => { if (kind === 'lamp') ctx.lobby.bumpLamps(doc.templeId); } });
   if (cluster) {
     cluster.start(() => ctx.lobby.presence());
     // a lamp lit through another instance: refresh this instance's rooms too

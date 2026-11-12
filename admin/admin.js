@@ -16,6 +16,81 @@ const TIER = { starter: '入門版', standard: '標準版', flagship: '旗艦版
 const STATUS = { pending: '待審核', approved: '已通過', rejected: '已駁回' };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// ---- 檢舉與內容、帳號 ----
+const STATE = { public: '公開', held: '已收起（待看）', removed: '已下架' };
+const REASON = { ad: '廣告', abuse: '不當內容', other: '其他' };
+const LOG = { hide: '下架', keep: '保留 / 恢復', mute: '禁言', unmute: '解除禁言' };
+const fail = (what) => (err) => alert(`${what}失敗：${err.data?.error || err.message}`);
+
+async function loadContent() {
+  const q = new URLSearchParams({ kind: $('content-kind').value, filter: $('content-filter').value });
+  if ($('content-q').value.trim()) q.set('q', $('content-q').value.trim());
+  const d = await call('GET', `/api/admin/content?${q}`);
+  $('content-open').textContent = d.open ? `待處理的檢舉：${d.open} 則` : '沒有待處理的檢舉';
+  $('content').innerHTML = d.items.length ? d.items.map((i) => `
+    <tr>
+      <td class="num">${esc(when(i.createdAt))}</td>
+      <td>${esc(i.text)}<div><code>${esc(i.templeId)}</code></div></td>
+      <td><a class="link" data-user="${esc(i.authorId)}">${esc(i.authorName || '—')}</a>${i.authorMuted ? ' <span class="pill muted-pill">禁言中</span>' : ''}<div><code>${esc(i.authorId)}</code></div></td>
+      <td>${i.reports ? `${i.reports} 人${Object.entries(i.reasons).map(([k, n]) => `<div class="muted">${esc(REASON[k] || k)} ×${n}</div>`).join('')}` : '<span class="muted">—</span>'}</td>
+      <td><span class="pill ${esc(i.state)}">${STATE[i.state] || esc(i.state)}</span>${i.removedReason ? `<div class="muted">${esc(i.removedReason)}</div>` : ''}</td>
+      <td><div class="row">
+        ${i.state !== 'removed' ? `<button type="button" class="secondary" data-hide="${esc(i.kind)}/${esc(i.id)}">下架</button>` : ''}
+        ${i.state !== 'public' || i.reportStatus === 'open' ? `<button type="button" class="secondary" data-restore="${esc(i.kind)}/${esc(i.id)}">${i.state === 'public' ? '保留' : '恢復'}</button>` : ''}
+      </div></td>
+    </tr>`).join('') : '<tr><td colspan="6" class="muted">沒有符合的內容</td></tr>';
+}
+
+async function loadUsers() {
+  const q = $('users-q').value.trim();
+  const [d, log] = await Promise.all([call('GET', `/api/admin/users?${new URLSearchParams(q ? { q } : {})}`), call('GET', '/api/admin/modlog')]);
+  $('users').innerHTML = d.users.length ? d.users.map((u) => `
+    <tr>
+      <td>${esc(u.name)}<div><code>${esc(u.id)}</code></div></td>
+      <td class="num">${esc(when(u.createdAt))}</td>
+      <td class="num">功德 ${u.merit}<div class="muted">${u.minutes} 分鐘 · 連續 ${u.streak} 天</div></td>
+      <td class="num">祈願牌 ${u.wishes} · 燈 ${u.lamps}<div class="muted">家堂 ${u.halls}（不可查看）</div></td>
+      <td class="num">${u.reported || '<span class="muted">—</span>'}</td>
+      <td>${u.muted ? `<span class="pill muted-pill">禁言中</span><div class="muted">${esc(when(u.muted.at))}</div><div class="muted">${esc(u.muted.reason)}</div>` : '<span class="pill public">正常</span>'}</td>
+      <td><div class="row">
+        ${u.muted ? `<button type="button" class="secondary" data-unmute="${esc(u.id)}">解除禁言</button>` : `<button type="button" class="secondary" data-mute="${esc(u.id)}" data-label="${esc(u.name)}">禁言</button>`}
+        <button type="button" class="secondary" data-orders="${esc(u.id)}">看訂單</button>
+      </div></td>
+    </tr>`).join('') : '<tr><td colspan="7" class="muted">找不到帳號</td></tr>';
+  $('modlog').textContent = log.log.map((l) => `${when(l.at)}  ${LOG[l.action] || l.action}  ${l.target}${l.reason ? `  ｜${l.reason}` : ''}`).join('\n') || '還沒有操作';
+}
+
+document.addEventListener('click', async (e) => {
+  const d = e.target.dataset;
+  try {
+    if (d.hide) {
+      const reason = prompt('下架原因（留在操作記錄裡，按「取消」則不下架）：');
+      if (reason === null) return;
+      await call('POST', `/api/admin/content/${d.hide}/hide`, { reason });
+      await Promise.all([loadContent(), loadUsers()]);
+    } else if (d.restore) {
+      await call('POST', `/api/admin/content/${d.restore}/restore`);
+      await Promise.all([loadContent(), loadUsers()]);
+    } else if (d.mute) {
+      const reason = prompt(`禁言：${d.label}\n這個帳號不能再掛祈願牌、燈上不能寫字。請填原因（按「取消」則不禁言）：`);
+      if (reason === null) return;
+      const hideAll = confirm('同時把這個帳號目前公開的祈願牌與燈上的字全部下架嗎？\n「確定」= 全部下架；「取消」= 只禁言。');
+      await call('POST', `/api/admin/users/${d.mute}/mute`, { reason, hideAll });
+      await Promise.all([loadContent(), loadUsers()]);
+    } else if (d.unmute) {
+      await call('POST', `/api/admin/users/${d.unmute}/unmute`);
+      await loadUsers();
+    } else if (d.user) {
+      $('users-q').value = d.user; await loadUsers(); $('users').scrollIntoView({ block: 'center' });
+    } else if (d.orders) {
+      $('orders-user').value = d.orders; $('orders-status').value = ''; await loadOrders(); $('orders').scrollIntoView({ block: 'center' });
+    }
+  } catch (err) { fail('操作')(err); }
+});
+$('content-refresh').onclick = () => loadContent().catch(fail('查詢'));
+$('content-kind').onchange = $('content-filter').onchange = $('content-refresh').onclick;
+$('users-refresh').onclick = () => loadUsers().catch(fail('查詢'));
+
 // ---- 訂單與退款 ----
 const ORDER_STATUS = { pending: '未付款', paid: '已付款', refunded: '已退款' };
 const SIGN = { TWD: 'NT$', USD: 'US$' };
@@ -74,7 +149,7 @@ async function load() {
     <td>${s.regions.map(esc).join(', ')}</td><td>${s.complianceModes.map(esc).join(', ')}</td><td>${s.seats}</td><td>${esc(s.license)}</td></tr>`).join('');
   $('rejected').textContent = Object.keys(scenes.rejected).length ? `被拒收的場景包：\n${JSON.stringify(scenes.rejected, null, 2)}` : '';
   $('scene-select').innerHTML = scenes.scenes.map((s) => `<option value="${esc(s.id)}">${esc(s.name['zh-Hant'])}</option>`).join('');
-  await loadOrders();
+  await Promise.all([loadOrders(), loadContent(), loadUsers()]);
 }
 
 document.addEventListener('click', async (e) => {

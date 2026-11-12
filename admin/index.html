@@ -28,6 +28,8 @@
   .paid { color: var(--ok); border-color: var(--ok); } .refunded { color: var(--bad); border-color: var(--bad); }
   td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
   code { font-size: 12px; color: var(--muted); }
+  .held { color: var(--gold); border-color: var(--gold); } .removed, .muted-pill { color: var(--bad); border-color: var(--bad); } .public { color: var(--ok); border-color: var(--ok); }
+  a.link { color: var(--gold); cursor: pointer; text-decoration: underline; }
   .stat { border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; min-width: 140px; }
   .stat b { display: block; font-size: 24px; font-weight: 500; }
   form.apply { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -57,6 +59,36 @@
     <section>
       <h2>即時狀態</h2>
       <div class="stats" id="stats"></div>
+    </section>
+
+    <section>
+      <h2>檢舉與內容</h2>
+      <p class="muted">這裡只列大家在殿裡看得到的東西：祈願牌、燈牆上的心願（姓名已遮）。私人家堂與不公開的心願不在這裡。三個不同的人檢舉會先自動收起。</p>
+      <div class="row" style="margin:12px 0">
+        <select id="content-kind" aria-label="種類"><option value="wish">祈願牌</option><option value="lamp">燈牆</option></select>
+        <select id="content-filter" aria-label="範圍"><option value="reported">被檢舉、待處理</option><option value="hidden">已收起 / 已下架</option><option value="all">全部</option></select>
+        <input id="content-q" placeholder="找文字" size="14" aria-label="找文字">
+        <button id="content-refresh" class="secondary" type="button">查詢</button>
+        <span class="muted" id="content-open"></span>
+      </div>
+      <div class="scroll"><table>
+        <thead><tr><th>時間</th><th>內容</th><th>帳號</th><th>檢舉</th><th>狀態</th><th>操作</th></tr></thead>
+        <tbody id="content"></tbody>
+      </table></div>
+    </section>
+
+    <section>
+      <h2>帳號</h2>
+      <p class="muted">禁言：不能再掛祈願牌、燈上不能寫字；修行、功德、家堂不受影響。</p>
+      <div class="row" style="margin:12px 0">
+        <input id="users-q" placeholder="帳號 ID 或法名的一部分（留空 = 最新）" size="30" aria-label="帳號 ID 或法名">
+        <button id="users-refresh" class="secondary" type="button">查詢</button>
+      </div>
+      <div class="scroll"><table>
+        <thead><tr><th>帳號</th><th>加入</th><th>修行</th><th>公開內容</th><th>被檢舉</th><th>狀態</th><th>操作</th></tr></thead>
+        <tbody id="users"></tbody>
+      </table></div>
+      <details style="margin-top:12px"><summary class="muted">操作記錄（最近 50 筆）</summary><pre id="modlog"></pre></details>
     </section>
 
     <section>

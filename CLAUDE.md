@@ -13,7 +13,7 @@
 
 ```bash
 npm start            # http://localhost:8787 （Node ≥ 20，零 npm 依赖）
-npm test             # 74 项测试（其中 5 项需要真的 PostgreSQL / Redis，没设 TEST_DATABASE_URL 时跳过），必须全部通过再提交
+npm test             # 77 项测试（其中 5 项需要真的 PostgreSQL / Redis，没设 TEST_DATABASE_URL 时跳过），必须全部通过再提交
 npm run loadtest     # 压测
 docker compose up -d --build   # 容器方式（单实例）
 docker compose -f docker-compose.cluster.yml up -d --build   # PostgreSQL + Redis + 两实例 + Nginx（:8797）
@@ -48,6 +48,7 @@ docker compose -f docker-compose.cluster.yml up -d --build   # PostgreSQL + Redi
 - 他人的泥生是只跑 IK 的骨架（rig），由 `client/src/avatar/crowd.js` 按「部件 × 釉类 × 远近」合并成 GPU 实例化批次绘制，釉色 / 冰裂 / 金缮走实例属性；名牌合成一张图集一次画完。96 人同殿实测整帧 1,694 → 148 draw calls（大殿本身约 100），三角面 128 万 → 55 万（12 米外用半细分模型）。自己的泥生仍是完整网格与阴影。改泥生的部件或材质时，`nisheng.js` 的 slot 名与 `crowd.js` 的材质表要一起改。
 - 付费道具（`docs/PAYMENTS.md`）：目录 `content/shop/catalog.json`、`server/domain/shop.js`、订单账本 `server/store/ledger.js`（PostgreSQL 模式走事务）、通道 `server/domain/payments.js`（沙盒 / Stripe）、客户端 `client/src/shop.js`。不设 `PAYMENTS` 就不卖；`PAYMENTS=sandbox` 只用于本机测试。规则 1 在这里用代码守着：目录校验拒收 `merit` 与任何随机字段，买与用都不碰功德。价格是设计文档建议值，待营运确认；Stripe 通道没用真实密钥跑过。
 - 节日活动（`docs/FESTIVALS.md`）：节日是数据 `content/events/festivals.json`，活动期由 `server/domain/festival.js` 按节气算；清明云祭扫的祭扫记录在灵位上（`sweeps`），逻辑在 `server/domain/ancestors.js`。祭扫沿用献供的功德规则，不新增功德来源；祭扫卡不带任何姓名。本机预览用 `FESTIVAL_PREVIEW=qingming`，线上不要设。
+- 内容与账号管理（`docs/MODERATION.md`，`server/domain/moderation.js`）：后台**只看公开的东西**（祈愿牌、灯墙）；祖先堂与带自伤念头的内容后台读不到，不要为了方便加接口去读。检举只有预设理由。下架的灯照样亮，只是不显示字。
 - 签诗是原创示例 12 签，需文化顾问审阅。
 
 ## 资料

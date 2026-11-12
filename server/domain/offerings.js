@@ -39,10 +39,10 @@ export class OfferingService {
     return { wish, support: crisis ? this.hotline : null };
   }
 
-  wall(templeId, limit = 60) {
+  wall(templeId, limit = 60, viewerId = null) {
     return this.store.list('wishes', (w) => w.templeId === templeId && w.visibility === 'public')
       .sort((a, b) => b.createdAt - a.createdAt).slice(0, limit)
-      .map(({ id, name, text, rejoice, createdAt }) => ({ id, name, text, rejoice, createdAt }));
+      .map(({ id, name, text, rejoice, createdAt, userId }) => ({ id, name, text, rejoice, createdAt, mine: !!viewerId && userId === viewerId }));
   }
 
   rejoice(user, wishId) {
