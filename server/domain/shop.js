@@ -100,9 +100,9 @@ export class ShopService {
     return this.publicOrder(await this.ledger.get(orderId));
   }
 
-  async refund(orderId, now = Date.now()) {
+  async refund(orderId, now = Date.now(), reason = null) {
     if (!orderId) return null;
-    const { order, changed } = await this.ledger.markRefunded(orderId, now);
+    const { order, changed } = await this.ledger.markRefunded(orderId, now, reason);
     if (changed && order.granted) this.grant(order, -1);
     return order && this.publicOrder(order);
   }
@@ -134,6 +134,39 @@ export class ShopService {
     const o = await this.ledger.get(id);
     if (!o || o.userId !== user.id) throw new HttpError(404, 'order_not_found');
     return this.publicOrder(o);
+  }
+
+  // ---- 後台（平台方）：看訂單、退款 ----
+  adminOrder(o) {
+    return {
+      ...this.publicOrder(o), userId: o.userId, userName: this.users.store.get('users', o.userId)?.name || null,
+      provider: o.provider, providerRef: o.providerRef || null, target: o.target || null, granted: !!o.granted,
+      refundedAt: o.refundedAt || null, refundReason: o.refundReason || null,
+    };
+  }
+
+  async adminOrders({ status = null, userId = null, limit = 100 } = {}) {
+    if (status && !['pending', 'paid', 'refunded'].includes(status)) throw new HttpError(422, 'bad_status');
+    return (await this.ledger.list({ status, userId, limit: Math.min(Math.max(1, limit | 0), 500) })).map((o) => this.adminOrder(o));
+  }
+
+  /** Money in / money sent back, last 24 hours and last 30 days, per currency. */
+  async adminSummary(now = Date.now()) {
+    return { day: await this.ledger.totals(now - DAY), month: await this.ledger.totals(now - 30 * DAY) };
+  }
+
+  /**
+   * Refund a paid order in full: the money goes back through the channel that took it first,
+   * and only then do our books change and the items come back out of the bag.
+   * Items already used are not chased (the bag never goes below zero); merit is untouched either way.
+   */
+  async adminRefund(orderId, reason = '', now = Date.now()) {
+    const o = await this.ledger.get(orderId);
+    if (!o) throw new HttpError(404, 'order_not_found');
+    if (o.status !== 'paid') throw new HttpError(409, 'not_refundable');
+    if (!this.provider || this.provider.id !== o.provider) throw new HttpError(409, 'provider_unavailable');
+    await this.provider.refund(o);
+    return this.adminOrder(await this.ledger.get((await this.refund(orderId, now, String(reason || '').slice(0, 200) || null)).id));
   }
 
   publicOrder(o) {

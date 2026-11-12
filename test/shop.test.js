@@ -163,6 +163,80 @@ test('Stripe: signatures are checked, a paid webhook grants once, a refund takes
   } finally { await h.close(); }
 });
 
+test('back office: orders are listed, a refund sends the money back first, then takes the items — once', async () => {
+  // no admin token configured: the back office does not exist
+  const closed = await startApp({ ...SANDBOX, adminToken: '' });
+  try { assert.equal((await closed.api('GET', '/api/admin/orders', null, 'anything')).status, 401); } finally { await closed.close(); }
+
+  const secret = 'whsec_test', ADMIN = 'admin-test-token';
+  const h = await startApp({ adminToken: ADMIN, payments: { provider: 'stripe', stripeSecretKey: 'sk_test_x', stripeWebhookSecret: secret } });
+  try {
+    const sent = []; let refundOk = false;
+    h.app.ctx.shop.provider = stripe({
+      secretKey: 'sk_test_x', webhookSecret: secret,
+      fetchImpl: async (url, init) => {
+        sent.push({ url, init });
+        if (url.endsWith('/refunds')) return refundOk ? { ok: true, json: async () => ({ id: 're_1' }) } : { ok: false, status: 402, json: async () => ({ error: { code: 'insufficient_funds' } }) };
+        return { ok: true, json: async () => ({ id: 'cs_1', url: 'https://checkout.stripe.com/c/pay/cs_1' }) };
+      },
+    });
+    const me = await h.session();
+    const sign = (body) => { const t = Math.floor(Date.now() / 1000); return `t=${t},v1=${crypto.createHmac('sha256', secret).update(`${t}.${body}`).digest('hex')}`; };
+    const pay = async (sku, pi) => {
+      const id = (await h.api('POST', '/api/shop/orders', { sku }, me.token)).body.order.id;
+      const body = JSON.stringify({ type: 'checkout.session.completed', data: { object: { client_reference_id: id, payment_status: 'paid', payment_intent: pi } } });
+      await fetch(`${h.base}/api/pay/stripe/webhook`, { method: 'POST', headers: { 'Stripe-Signature': sign(body) }, body });
+      return id;
+    };
+    const a = await pay('incense_high_10', 'pi_a');
+    const pending = (await h.api('POST', '/api/shop/orders', { sku: 'paper_set' }, me.token)).body.order.id;
+
+    // a visitor's token is not an admin token
+    assert.equal((await h.api('GET', '/api/admin/orders', null, me.token)).status, 401);
+    assert.equal((await h.api('POST', `/api/admin/orders/${a}/refund`, {}, me.token)).status, 401);
+
+    let r = await h.api('GET', '/api/admin/orders', null, ADMIN);
+    assert.equal(r.body.provider, 'stripe');
+    assert.deepEqual(r.body.orders.map((o) => [o.id, o.status]).sort(), [[a, 'paid'], [pending, 'pending']].sort());
+    assert.deepEqual(r.body.summary.day, [{ currency: 'TWD', status: 'paid', n: 1, amount: 12000 }]);
+    const row = r.body.orders.find((o) => o.id === a);
+    assert.deepEqual([typeof row.userId, row.providerRef, row.granted], ['string', 'pi_a', true]);
+    assert.equal((await h.api('GET', '/api/admin/orders?status=paid', null, ADMIN)).body.orders.length, 1);
+    assert.equal((await h.api('GET', '/api/admin/orders?user=nobody', null, ADMIN)).body.orders.length, 0);
+    assert.equal((await h.api('GET', '/api/admin/orders?status=weird', null, ADMIN)).status, 422);
+
+    // Stripe refuses: nothing changes on our side
+    r = await h.api('POST', `/api/admin/orders/${a}/refund`, { reason: '客人買錯' }, ADMIN);
+    assert.equal(r.status, 502);
+    r = await h.api('GET', `/api/shop/orders/${a}`, null, me.token);
+    assert.deepEqual([r.body.order.status, r.body.bag.incense_high], ['paid', 10]);
+
+    refundOk = true;
+    r = await h.api('POST', `/api/admin/orders/${a}/refund`, { reason: '客人買錯' }, ADMIN);
+    assert.deepEqual([r.status, r.body.order.status, r.body.order.refundReason], [200, 'refunded', '客人買錯']);
+    const req = sent.filter((s) => s.url === 'https://api.stripe.com/v1/refunds').pop();
+    assert.equal(new URLSearchParams(req.init.body).get('payment_intent'), 'pi_a');
+    assert.equal(req.init.headers['Idempotency-Key'], `refund-${a}`);
+    r = await h.api('GET', `/api/shop/orders/${a}`, null, me.token);
+    assert.deepEqual([r.body.order.status, r.body.bag.incense_high], ['refunded', 0]);
+    assert.equal((await h.api('GET', '/api/me', null, me.token)).body.merit, 0);
+
+    // a second click, an unpaid order, an unknown order: all refused, and Stripe is not called again
+    const calls = sent.length;
+    assert.equal((await h.api('POST', `/api/admin/orders/${a}/refund`, {}, ADMIN)).status, 409);
+    assert.equal((await h.api('POST', `/api/admin/orders/${pending}/refund`, {}, ADMIN)).status, 409);
+    assert.equal((await h.api('POST', '/api/admin/orders/nope/refund', {}, ADMIN)).status, 404);
+    assert.equal(sent.length, calls);
+    // Stripe's own refund notice arriving afterwards takes nothing more
+    const note = JSON.stringify({ type: 'charge.refunded', data: { object: { id: 'ch_1', metadata: { order: a } } } });
+    await fetch(`${h.base}/api/pay/stripe/webhook`, { method: 'POST', headers: { 'Stripe-Signature': sign(note) }, body: note });
+    r = await h.api('GET', '/api/admin/orders?status=refunded', null, ADMIN);
+    assert.deepEqual(r.body.summary.day, [{ currency: 'TWD', status: 'refunded', n: 1, amount: 12000 }]);
+    // the refunded money no longer counts against the buyer's 24-hour cap
+    assert.equal((await h.api('GET', '/api/shop?t=main', null, me.token)).body.cap.spent, 0);
+  } finally { await h.close(); }
+});
+
 const PG = process.env.TEST_DATABASE_URL;
 test('PostgreSQL ledger: two servers racing to mark one order paid — only one wins, one grants', { skip: !PG && 'set TEST_DATABASE_URL to run' }, async () => {
   const a = new PgClient(PG), b = new PgClient(PG);
@@ -177,7 +251,11 @@ test('PostgreSQL ledger: two servers racing to mark one order paid — only one 
     const o = await lb.get(id);
     assert.deepEqual([o.status, o.granted, o.amount, o.target.lampId], ['paid', true, 12000, 'x']);
     assert.equal(await la.paidSince('u', 'TWD', Date.now() - 60000) >= 12000, true);
-    assert.equal((await la.markRefunded(id, Date.now())).changed, true);
+    assert.ok((await la.list({ status: 'paid', userId: 'u', limit: 500 })).some((x) => x.id === id));
+    assert.ok((await lb.totals(Date.now() - 60000)).some((t) => t.currency === 'TWD' && t.status === 'paid' && t.amount >= 12000));
+    const back = await la.markRefunded(id, Date.now(), 'test');
+    assert.deepEqual([back.changed, back.order.refundReason], [true, 'test']);
     assert.equal((await lb.markRefunded(id, Date.now())).changed, false);
+    assert.equal((await lb.list({ status: 'refunded', userId: 'u', limit: 500 })).find((x) => x.id === id).refundReason, 'test');
   } finally { await a.close(); await b.close(); }
 });

@@ -23,7 +23,11 @@
   .pill { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
   .pending { color: var(--gold); border-color: var(--gold); } .approved { color: var(--ok); border-color: var(--ok); } .rejected { color: var(--bad); border-color: var(--bad); }
   .muted { color: var(--muted); font-size: 13px; }
-  .stats { display: flex; gap: 16px; }
+  .stats { display: flex; gap: 16px; flex-wrap: wrap; }
+  .scroll { overflow-x: auto; }
+  .paid { color: var(--ok); border-color: var(--ok); } .refunded { color: var(--bad); border-color: var(--bad); }
+  td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  code { font-size: 12px; color: var(--muted); }
   .stat { border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; min-width: 140px; }
   .stat b { display: block; font-size: 24px; font-weight: 500; }
   form.apply { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -53,6 +57,23 @@
     <section>
       <h2>即時狀態</h2>
       <div class="stats" id="stats"></div>
+    </section>
+
+    <section>
+      <h2>訂單與退款</h2>
+      <p class="muted" id="orders-note"></p>
+      <div class="stats" id="orders-stats"></div>
+      <div class="row" style="margin:12px 0">
+        <label class="muted" for="orders-status">狀態</label>
+        <select id="orders-status"><option value="">全部</option><option value="paid">已付款</option><option value="refunded">已退款</option><option value="pending">未付款</option></select>
+        <label class="muted" for="orders-user">帳號 ID</label>
+        <input id="orders-user" placeholder="留空 = 全部" size="16">
+        <button id="orders-refresh" class="secondary" type="button">查詢</button>
+      </div>
+      <div class="scroll"><table>
+        <thead><tr><th>時間</th><th>訂單</th><th>帳號</th><th>商品</th><th>金額</th><th>狀態</th><th>操作</th></tr></thead>
+        <tbody id="orders"></tbody>
+      </table></div>
     </section>
 
     <section>

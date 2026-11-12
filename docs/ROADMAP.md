@@ -21,6 +21,7 @@
 - [x] PostgreSQL + Redis，多实例部署：存储接口不变，零依赖客户端，两实例 + Nginx 已验证互通与故障切换（docs/CLUSTER.md）
 - Colyseus 替换自实现房间层（压测显示自实现房间层单进程可承载 10,000 人，暂不需要）；大集合按需载入；支付数据走 PostgreSQL 事务
 - [x] 保存修行（提前完成）：通行密钥与恢复码，不收集个人资料（docs/ACCOUNTS.md）
+- [x] 后台订单与退款：订单列表与合计、整笔退款（先退钱、再改账、再收回道具）（docs/PAYMENTS.md）
 - [x] 付费道具核心：商品目录、订单账本（PostgreSQL 事务）、背包、沙盒与 Stripe 通道、高香 / 龙凤香 / 纸扎 / 续灯 / 描金灵位，全部不加功德（docs/PAYMENTS.md）
 - 手机号 / Google / Apple / LINE 登录；Stripe 填入真实密钥并走一次真实付款；台湾在地支付（绿界 / LINE Pay）通道——需先申请各平台凭证与商户账号
 - [x] 提醒（提前完成）：Web Push 零依赖加密，早 8 点黄历、忌日 / 清明前一晚与当天、睡前静坐；可加入主画面的网页 App（docs/NOTIFICATIONS.md）

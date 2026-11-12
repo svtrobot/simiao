@@ -1,6 +1,7 @@
 // 支付通道。帳本與商品目錄不認識任何平台；每個通道只做兩件事：
 //   checkout(order, info) → { kind: 'redirect', url } | { kind: 'sandbox' }
 //   webhook(rawBody, headers) → { type: 'paid' | 'refunded' | 'ignored', orderId, ref }（簽名不對就丟 HttpError）
+//   refund(order) → 把整筆錢退回原付款方式（後台發起；平台自己的退款通知之後也會到 webhook，重複無害）
 // 沙盒通道只給本機開發用（PAYMENTS=sandbox），不扣款。Stripe 通道填了 STRIPE_SECRET_KEY 才啟用。
 // 之後的綠界 / LINE Pay 是同樣形狀的第三個通道。
 import crypto from 'node:crypto';
@@ -10,6 +11,7 @@ export const sandbox = () => ({
   id: 'sandbox',
   async checkout() { return { kind: 'sandbox' }; },
   webhook() { throw new HttpError(404, 'not_found'); },
+  async refund() { /* no money moved, nothing to send back */ },
 });
 
 /** Stripe's webhook signature: header `t=<unix>,v1=<hex hmac-sha256 of "t.payload">`. */
@@ -50,6 +52,18 @@ export const stripe = ({ secretKey, webhookSecret, fetchImpl = fetch }) => ({
     const json = await res.json().catch(() => null);
     if (!res.ok || !json?.url) throw new HttpError(502, 'payment_provider_error', { detail: json?.error?.code || res.status });
     return { kind: 'redirect', url: json.url, ref: json.id };
+  },
+  /** Full refund to the original payment method. A paid order's ref is its PaymentIntent. */
+  async refund(order) {
+    if (!/^pi_/.test(order.providerRef || '')) throw new HttpError(409, 'no_payment_ref');
+    const body = form({ payment_intent: order.providerRef, reason: 'requested_by_customer', metadata: { order: order.id } }).join('&');
+    const res = await fetchImpl('https://api.stripe.com/v1/refunds', {
+      method: 'POST', body, signal: AbortSignal.timeout(15_000),
+      headers: { Authorization: `Bearer ${secretKey}`, 'Content-Type': 'application/x-www-form-urlencoded', 'Idempotency-Key': `refund-${order.id}` },
+    });
+    const json = await res.json().catch(() => null);
+    // already refunded on Stripe's side (e.g. from their dashboard): our books just need to catch up
+    if (!res.ok && json?.error?.code !== 'charge_already_refunded') throw new HttpError(502, 'payment_provider_error', { detail: json?.error?.code || res.status });
   },
   webhook(rawBody, headers, now = Date.now()) {
     verifyStripeSignature(rawBody, headers['stripe-signature'], webhookSecret, now);

@@ -352,6 +352,22 @@ export function createHandler(ctx) {
     return { scenes: [...scenes.scenes.values()].map((s) => scenes.summary(s)), rejected: Object.fromEntries(scenes.errors) };
   });
   route('POST', '/api/admin/scenes/reload', (req) => { admin(req); scenes.load(); return { loaded: scenes.scenes.size, rejected: Object.fromEntries(scenes.errors) }; });
+  // 訂單與退款（docs/PAYMENTS.md）。退款先退錢、再改帳、再收回道具；功德不受影響。
+  route('GET', '/api/admin/orders', async (req, p, url) => {
+    admin(req);
+    const q = url.searchParams;
+    return {
+      provider: shop.provider?.id || null, currency: shop.currency,
+      orders: await shop.adminOrders({ status: q.get('status') || null, userId: q.get('user') || null, limit: Number(q.get('limit')) || 100 }),
+      summary: await shop.adminSummary(),
+    };
+  });
+  route('POST', '/api/admin/orders/:id/refund', async (req, p) => {
+    admin(req);
+    const order = await shop.adminRefund(p.id, (await readJson(req)).reason);
+    console.log(`[admin] refunded order ${order.id} (${order.currency} ${order.amount}, user ${order.userId})`);
+    return { order };
+  });
   route('GET', '/api/admin/stats', (req, p, url) => {
     admin(req);
     return {

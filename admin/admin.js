@@ -16,6 +16,38 @@ const TIER = { starter: '入門版', standard: '標準版', flagship: '旗艦版
 const STATUS = { pending: '待審核', approved: '已通過', rejected: '已駁回' };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// ---- 訂單與退款 ----
+const ORDER_STATUS = { pending: '未付款', paid: '已付款', refunded: '已退款' };
+const SIGN = { TWD: 'NT$', USD: 'US$' };
+const money = (amount, cur) => `${SIGN[cur] || `${cur} `}${(amount / 100).toLocaleString('en-US', { minimumFractionDigits: amount % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
+const when = (ms) => (ms ? new Date(ms).toLocaleString('zh-TW', { hour12: false }) : '');
+const PROVIDER_NOTE = {
+  sandbox: '目前是沙盒通道：沒有真實金流，退款只改帳、收回道具。',
+  stripe: '目前是 Stripe 通道：按「退款」會把整筆金額退回原付款方式，無法撤銷。',
+};
+
+async function loadOrders() {
+  const q = new URLSearchParams();
+  if ($('orders-status').value) q.set('status', $('orders-status').value);
+  if ($('orders-user').value.trim()) q.set('user', $('orders-user').value.trim());
+  const d = await call('GET', `/api/admin/orders?${q}`);
+  $('orders-note').textContent = `${PROVIDER_NOTE[d.provider] || '目前沒有開啟支付通道（未設定 PAYMENTS）：只能查看，不能退款。'}已用掉的道具不會追回；功德不受退款影響。`;
+  const sum = (rows, status) => rows.filter((r) => r.status === status);
+  const line = (rows) => (rows.length ? rows.map((r) => `${money(r.amount, r.currency)}（${r.n} 筆）`).join('、') : '—');
+  $('orders-stats').innerHTML = [['近 24 小時收款', sum(d.summary.day, 'paid')], ['近 24 小時退款', sum(d.summary.day, 'refunded')], ['近 30 天收款', sum(d.summary.month, 'paid')], ['近 30 天退款', sum(d.summary.month, 'refunded')]]
+    .map(([label, rows]) => `<div class="stat"><span class="muted">${label}</span><b style="font-size:18px">${esc(line(rows))}</b></div>`).join('');
+  $('orders').innerHTML = d.orders.length ? d.orders.map((o) => `
+    <tr>
+      <td class="num">${esc(when(o.createdAt))}</td>
+      <td><code>${esc(o.id)}</code>${o.providerRef ? `<div><code>${esc(o.provider)} · ${esc(o.providerRef)}</code></div>` : `<div><code>${esc(o.provider)}</code></div>`}</td>
+      <td>${esc(o.userName || '—')}<div><code>${esc(o.userId)}</code></div></td>
+      <td>${esc(o.name)}</td>
+      <td class="num">${esc(money(o.amount, o.currency))}</td>
+      <td><span class="pill ${esc(o.status)}">${ORDER_STATUS[o.status] || esc(o.status)}</span>${o.refundedAt ? `<div class="muted">${esc(when(o.refundedAt))}</div>` : ''}${o.refundReason ? `<div class="muted">${esc(o.refundReason)}</div>` : ''}</td>
+      <td>${o.status === 'paid' && d.provider === o.provider ? `<button type="button" class="secondary" data-refund="${esc(o.id)}" data-label="${esc(`${o.name} ${money(o.amount, o.currency)}`)}">退款</button>` : ''}</td>
+    </tr>`).join('') : '<tr><td colspan="7" class="muted">沒有符合的訂單</td></tr>';
+}
+
 async function load() {
   const [stats, apps, scenes, cfg] = await Promise.all([
     call('GET', '/api/admin/stats'), call('GET', '/api/admin/applications'), call('GET', '/api/admin/scenes'), call('GET', '/api/config'),
@@ -41,7 +73,20 @@ async function load() {
     <td>${s.regions.map(esc).join(', ')}</td><td>${s.complianceModes.map(esc).join(', ')}</td><td>${s.seats}</td><td>${esc(s.license)}</td></tr>`).join('');
   $('rejected').textContent = Object.keys(scenes.rejected).length ? `被拒收的場景包：\n${JSON.stringify(scenes.rejected, null, 2)}` : '';
   $('scene-select').innerHTML = scenes.scenes.map((s) => `<option value="${esc(s.id)}">${esc(s.name['zh-Hant'])}</option>`).join('');
+  await loadOrders();
 }
+
+document.addEventListener('click', async (e) => {
+  const id = e.target.dataset.refund;
+  if (!id) return;
+  const reason = prompt(`退款：${e.target.dataset.label}\n整筆退回，無法撤銷。請填退款原因（留在帳上，按「取消」則不退）：`);
+  if (reason === null) return;
+  e.target.disabled = true;
+  try { await call('POST', `/api/admin/orders/${id}/refund`, { reason }); await loadOrders(); }
+  catch (err) { e.target.disabled = false; alert(`退款失敗：${err.data?.error || err.message}`); }
+});
+$('orders-refresh').onclick = () => loadOrders().catch((err) => alert(`查詢失敗：${err.data?.error || err.message}`));
+$('orders-status').onchange = $('orders-refresh').onclick;
 
 document.addEventListener('click', async (e) => {
   const ap = e.target.dataset.approve, rj = e.target.dataset.reject;
