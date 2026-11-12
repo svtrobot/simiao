@@ -15,6 +15,7 @@ import { AccountService } from './domain/accounts.js';
 import { PushService } from './domain/push.js';
 import { ShopService } from './domain/shop.js';
 import { providerFor } from './domain/payments.js';
+import { Festivals } from './domain/festival.js';
 import { JsonLedger, PgLedger } from './store/ledger.js';
 import { record } from './domain/practice.js';
 import { effectiveMode, actionAllowed } from './domain/compliance.js';
@@ -35,7 +36,8 @@ export function createApp(overrides = {}) {
   ctx.offerings = new OfferingService({ store, tz: config.regionPolicy.tz, hotline: config.regionPolicy.hotline, shard: cluster ? config.instanceId : '' });
   ctx.lamps = new LampService({ store, hotline: config.regionPolicy.hotline });
   ctx.lampKinds = LAMP_KINDS;
-  ctx.ancestors = new AncestorService({ store, tz: config.regionPolicy.tz, hotline: config.regionPolicy.hotline });
+  ctx.festivals = new Festivals({ contentDir: config.contentDir, tz: config.regionPolicy.tz, preview: config.festivalPreview || '' });
+  ctx.ancestors = new AncestorService({ store, tz: config.regionPolicy.tz, hotline: config.regionPolicy.hotline, festivals: ctx.festivals });
   ctx.accounts = new AccountService({ store, users: ctx.users, publicOrigin: config.publicOrigin || '' });
   ctx.daily = new DailyLines(config.contentDir);
   ctx.modeOf = (temple, scene) => effectiveMode({ regionPolicy: config.regionPolicy, scene, temple });

@@ -134,7 +134,10 @@ export function upcoming(tablets, today, { days = 30, tz } = {}) {
 }
 
 export class AncestorService {
-  constructor({ store, tz, hotline, useItem = null }) { this.store = store; this.tz = tz; this.hotline = hotline; this.useItem = useItem; }
+  constructor({ store, tz, hotline, useItem = null, festivals = null }) {
+    Object.assign(this, { store, tz, hotline, useItem, festivals });
+    this.statsMemo = { at: 0, key: '', value: null };
+  }
 
   // ---------------------------------------------------------------- halls
 
@@ -294,6 +297,87 @@ export class AncestorService {
     return { tablet: tb, first: mine.length === 0, already: false };
   }
 
+  // ---------------------------------------------------------------- 清明雲祭掃（節日活動，server/domain/festival.js）
+
+  /** The festival open right now and the key its records are kept under, or null. */
+  season(now = Date.now()) {
+    const fest = this.festivals?.current(now);
+    return fest && fest.phase === 'open' ? { fest, key: `${fest.id}-${fest.year}` } : null;
+  }
+
+  /**
+   * 祭掃: wipe the dust off a tablet and leave a willow sprig. Once per person per tablet per festival;
+   * the sprig stays for the whole festival. It also counts as today's offering to this person, so merit
+   * follows the same once-a-day rule as 獻供 (4.2) — sweeping twice, or sweeping and then offering, adds nothing.
+   * Allowed in both modes: this is the 文明祭掃 form (COMPLIANCE.md).
+   */
+  sweep(user, hallId, tabletId, now = Date.now()) {
+    const s = this.season(now);
+    if (!s) throw new HttpError(409, 'not_in_season');
+    const tb = this.tabletFor(user, hallId, tabletId);
+    tb.sweeps = tb.sweeps || {};
+    const list = tb.sweeps[s.key] || (tb.sweeps[s.key] = []);
+    if (list.some((x) => x.userId === user.id)) return { tablet: tb, first: false, already: true };
+    list.push({ userId: user.id, name: user.name, at: now });
+    const day = this.day(tb, now);
+    const first = !day.offers.some((o) => o.userId === user.id);
+    day.offers.push({ kind: 'sweep', userId: user.id, name: user.name, at: now });
+    this.store.put('tablets', tb.id, tb);
+    this.statsMemo.at = 0;
+    return { tablet: tb, first, already: false };
+  }
+
+  /** How far this family has got: tablets swept by anyone, by me, and the share card if one was made. */
+  festivalView(f, tablets, user, now = Date.now()) {
+    const fest = this.festivals?.current(now);
+    if (!fest) return null;
+    const key = `${fest.id}-${fest.year}`;
+    const swept = tablets.filter((tb) => tb.sweeps?.[key]?.length);
+    return {
+      ...fest, total: tablets.length, swept: swept.length,
+      mine: swept.filter((tb) => tb.sweeps[key].some((x) => x.userId === user.id)).length,
+      card: f.cards?.[key] || null,
+    };
+  }
+
+  /** 祭掃卡: a link the family can pass on. Made once per hall per festival, after at least one tablet is swept. */
+  sweepCard(user, hallId, now = Date.now()) {
+    const s = this.season(now);
+    if (!s) throw new HttpError(409, 'not_in_season');
+    const f = this.hall(user, hallId);
+    if (!this.tablets(f.id).some((tb) => tb.sweeps?.[s.key]?.length)) throw new HttpError(409, 'nothing_swept');
+    f.cards = f.cards || {};
+    if (!f.cards[s.key]) {
+      f.cards[s.key] = newId(10);
+      this.store.put('sweepcards', f.cards[s.key], { id: f.cards[s.key], familyId: f.id, key: s.key, festival: s.fest.id, year: s.fest.year, createdAt: now });
+      this.store.put('families', f.id, f);
+    }
+    return { code: f.cards[s.key] };
+  }
+
+  /** What anyone holding the card link sees: the hall's name and two counts. No names of the departed, no members, no photos. */
+  sweepCardView(code) {
+    const c = code && this.store.get('sweepcards', code);
+    const f = c && this.store.get('families', c.familyId);
+    if (!f || f.cards?.[c.key] !== c.id) throw new HttpError(404, 'not_found');
+    const swept = this.tablets(f.id).filter((tb) => tb.sweeps?.[c.key]?.length);
+    const people = new Set(swept.flatMap((tb) => tb.sweeps[c.key].map((x) => x.userId)));
+    return { festival: c.festival, year: c.year, hallName: f.name, tablets: swept.length, people: people.size };
+  }
+
+  /** Whole-platform totals for the open festival (cached a minute; a scan — see CLAUDE.md on large collections). */
+  festivalStats(now = Date.now()) {
+    const fest = this.festivals?.current(now);
+    if (!fest) return null;
+    const key = `${fest.id}-${fest.year}`;
+    if (this.statsMemo.key !== key || now - this.statsMemo.at > 60_000) {
+      const halls = new Set(); let tablets = 0;
+      for (const tb of this.store.list('tablets', (x) => x.sweeps?.[key]?.length)) { tablets += 1; halls.add(tb.familyId); }
+      this.statsMemo = { at: now, key, value: { halls: halls.size, tablets } };
+    }
+    return this.statsMemo.value;
+  }
+
   /** 寄語: a few words to the departed, seen by the family. Self-harm thoughts stay private + hotline (8.4). */
   note(user, hallId, tabletId, text, now = Date.now()) {
     const tb = this.tabletFor(user, hallId, tabletId);
@@ -361,6 +445,7 @@ export class AncestorService {
       id: tb.id, name: tb.name, relation: tb.relation, epitaph: tb.epitaph, born: tb.born,
       died: tb.died.lunar ? { date: tb.died.date, lunar: true, ly: tb.died.ly, lm: tb.died.lm, ld: tb.died.ld, leap: tb.died.leap } : { date: tb.died.date, lunar: false },
       photoV: tb.photo ? tb.photoV : 0, permanent: !!tb.permanent,
+      swept: ((s) => (s ? (tb.sweeps?.[s.key] || []).map((x) => ({ name: x.name, mine: x.userId === viewer.id })) : []))(this.season(now)),
       canEdit: tb.createdBy === viewer.id || f.ownerId === viewer.id,
       today: {
         offers: day.offers.map((o) => ({ kind: o.kind, name: o.name, mine: o.userId === viewer.id })),
@@ -380,6 +465,7 @@ export class AncestorService {
       tablets: tablets.map((tb) => this.tabletView(tb, user, f, now)),
       upcoming: upcoming(tablets, todayIn(this.tz, now), { days: 45, tz: this.tz }),
       offerings: OFFERINGS[mode] || OFFERINGS.cultural, paper: PAPER[mode] || [],
+      festival: this.festivalView(f, tablets, user, now),
     };
   }
 

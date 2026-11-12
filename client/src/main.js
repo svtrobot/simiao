@@ -17,6 +17,8 @@ const cardId = (location.pathname.match(/^\/c\/([A-Za-z0-9_-]+)/) || [])[1] || n
 let card = null;
 // 祖先堂邀請: /f/<code> shows who invited you, then joins that family hall once you are in
 const inviteCode = (location.pathname.match(/^\/f\/([A-Za-z0-9_-]+)/) || [])[1] || null;
+// 清明祭掃卡: /q/<code> shows a family's card (no names on it), then leads into the ancestor hall
+const sweepCode = (location.pathname.match(/^\/q\/([A-Za-z0-9_-]+)/) || [])[1] || null;
 
 // Heavy 3D modules start downloading right away, while the intro text is on screen.
 const three = Promise.all([import('three'), import('./world/scene.js')]).catch((e) => { console.error(e); return null; });
@@ -30,6 +32,26 @@ const account = createAccount();
 const reminders = createReminders();
 if (cardId) configured.then(showCard); // after applyI18n, which would reset the button text
 if (inviteCode) configured.then(showInvite);
+if (sweepCode) configured.then(showSweepCard);
+
+async function showSweepCard() {
+  try {
+    const c = await api('GET', `/api/sweeps/${sweepCode}`);
+    $('card-title').textContent = t('sweep.cardTitle', c.hallName);
+    $('card-kind').textContent = t('sweep.cardKind', c.year);
+    $('card-wish').hidden = false;
+    $('card-wish').textContent = t('sweep.cardMeta', c.people, c.tablets);
+    // the platform-wide count only once it is big enough to mean something
+    $('card-from').textContent = c.stats?.halls >= 20 ? t('fest.stats', c.stats.halls, c.stats.tablets) : '';
+    $('card-until').textContent = t('sweep.cardNote');
+    $('card-view').classList.add('invite');
+    $('card-view').hidden = false;
+    document.querySelector('.intro-line').hidden = true;
+    $('enter').textContent = t('sweep.enter');
+  } catch {
+    $('intro-status').textContent = t('sweep.notFound');
+  }
+}
 
 async function showInvite() {
   try {
@@ -194,6 +216,20 @@ function start(game, session, info) {
       else if (go === 'almanac') $('alm-chip')?.click();
     }, 2800);
   }
+  if (sweepCode) {
+    history.replaceState(null, '', '/');
+    setTimeout(() => anc.enter(), 2800);
+  }
+  // 節日活動: a chip under the top bar while 清明 is warming up or open; it leads to the ancestor hall
+  api('GET', '/api/festival').then(({ festival, stats }) => {
+    if (!festival) return;
+    const chip = document.createElement('button');
+    chip.type = 'button'; chip.id = 'fest-chip'; chip.className = 'fest-chip';
+    chip.textContent = festival.phase === 'warmup' ? t('fest.warmup', festival.inDays) : t('fest.open', festival.inDays);
+    if (stats?.halls >= 20) chip.title = t('fest.stats', stats.halls, stats.tablets);
+    chip.onclick = () => handlers.ancestor();
+    document.body.append(chip);
+  }).catch(() => {});
   if (inviteCode) {
     history.replaceState(null, '', '/');
     setTimeout(() => anc.joinByInvite(inviteCode), 2800);

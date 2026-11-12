@@ -1,0 +1,11 @@
+{
+  "festivals": [
+    {
+      "id": "qingming",
+      "anchor": { "solarTerm": 1 },
+      "warmupDays": 21,
+      "beforeDays": 10,
+      "afterDays": 10
+    }
+  ]
+}

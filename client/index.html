@@ -330,6 +330,7 @@
   <div id="anc-bar" class="anc-bar">
     <p id="anc-tip" class="fineprint"></p>
     <button id="anc-add" type="button" class="btn" data-i18n="anc.add">設靈位</button>
+    <button id="anc-share-sweep" type="button" class="btn-ghost small" hidden data-i18n="anc.shareSweep">分享祭掃卡</button>
   </div>
   <div id="anc-sheet" class="anc-sheet" hidden role="dialog" aria-labelledby="anc-name">
     <header class="anc-who">
@@ -344,6 +345,7 @@
     <div id="anc-offers" class="anc-offers"></div>
     <p id="anc-today" class="fineprint anc-today"></p>
     <div class="row">
+      <button id="anc-sweep" type="button" class="btn" hidden></button>
       <button id="anc-burn-btn" type="button" class="btn" data-i18n="anc.burn">燒紙</button>
       <button id="anc-gild" type="button" class="btn-ghost small" hidden data-i18n="shop.gild">描金 · 長明燈</button>
       <button id="anc-edit" type="button" class="btn-ghost small" data-i18n="anc.edit">編輯</button>
@@ -357,6 +359,15 @@
       </form>
       <p id="anc-support" class="support" hidden></p>
     </section>
+  </div>
+  <!-- 清明雲祭掃：在靈位上來回拭塵（手指或滑鼠），完成後插一枝柳 -->
+  <div id="anc-sweep-ui" class="anc-burn anc-sweep-ui" hidden>
+    <p id="anc-sweep-for" class="panel-tip"></p>
+    <div class="anc-sweep-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-labelledby="anc-sweep-for"><i id="anc-sweep-fill"></i></div>
+    <div class="row">
+      <button id="anc-sweep-skip" type="button" class="btn-ghost small" data-i18n="anc.sweepSkip">直接完成</button>
+      <button id="anc-sweep-cancel" type="button" class="btn-ghost small" data-i18n="anc.sweepCancel">先不掃</button>
+    </div>
   </div>
   <div id="anc-burn" class="anc-burn" hidden>
     <p id="anc-burn-for" class="panel-tip"></p>

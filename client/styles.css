@@ -442,3 +442,13 @@ div.temple-row span { color: var(--muted); }
 @media (orientation: landscape) and (min-width: 640px) {
   .anc-sheet { left: auto; right: 12px; transform: none; top: calc(58px + var(--safe-t)); bottom: calc(12px + var(--safe-b)); max-height: none; width: min(400px, 48vw); }
 }
+
+/* 清明雲祭掃（節日活動） */
+.fest-chip { position: fixed; z-index: 9; top: calc(60px + var(--safe-t)); left: 50%; transform: translateX(-50%); max-width: calc(100vw - 24px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: rgba(22, 18, 15, 0.72); border: 1px solid rgba(143, 176, 110, 0.6); color: #cfe3b4; border-radius: 999px; padding: 7px 14px; min-height: 36px; font-size: 13px; letter-spacing: 0.08em; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+body:has(.topbar.quiet) .fest-chip, body:has(#intro:not([hidden])) .fest-chip { display: none; }
+.anc-sweep-ui .row { justify-content: center; }
+.anc-sweep-bar { height: 6px; border-radius: 3px; background: rgba(239, 231, 218, 0.14); overflow: hidden; margin: 4px 0 12px; }
+.anc-sweep-bar i { display: block; height: 100%; width: 0; background: #9cc076; border-radius: 3px; transition: width 0.12s linear; }
+.anc.sweeping .anc-hit { touch-action: none; cursor: grab; }
+.anc-bar .btn-ghost { margin-left: 8px; }
+@media (prefers-reduced-motion: reduce) { .anc-sweep-bar i { transition: none; } }

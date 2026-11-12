@@ -334,6 +334,8 @@ export function buildAncestral({ look, mode, quality }) {
       // a little oil lamp in front, lit when the family offered anything to this person today
       const lamp = new THREE.Sprite(new THREE.SpriteMaterial({ map: lampTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
       lamp.scale.setScalar(0.08); lamp.position.set(0, 0.035, 0.085); g.add(lamp);
+      // 清明: a willow sprig stays beside the tablet once someone in the family has swept it
+      if (tb.swept?.length) { const w = willow(); w.position.set(0.082, 0.05, 0.034); w.rotation.z = -0.22; g.add(w); }
       tabletG.add(g);
       tabletMeshes.set(tb.id, { group: g, slab, lamp, faceMat, pos: pos.clone().add(new THREE.Vector3(0, 0.25, 0)), lit: tb.today?.offers?.length > 0 || !!tb.permanent, permanent: !!tb.permanent });
       picks.push(base, slab, cap);
@@ -349,6 +351,51 @@ export function buildAncestral({ look, mode, quality }) {
       if (t) t.lit = (tb.today?.offers?.length || 0) > 0 || !!tb.permanent;
     }
     for (const [k, g] of Object.entries(items)) g.userData.on = kinds.has(k);
+  }
+
+  // ---- 清明雲祭掃: 柳枝、拭塵的布、供桌上的一瓶柳 ----
+  const willowMat = new THREE.MeshStandardMaterial({ color: '#86b254', roughness: 0.7, side: THREE.DoubleSide });
+  const twigMat = new THREE.MeshStandardMaterial({ color: '#5a4a2a', roughness: 0.8 });
+  const leafGeo = new THREE.PlaneGeometry(0.011, 0.048); leafGeo.translate(0, -0.024, 0);
+  const stemGeo = new THREE.CylinderGeometry(0.002, 0.0035, 0.2, 5); stemGeo.translate(0, 0.1, 0);
+  function willow(scale = 1) {
+    const g = new THREE.Group();
+    for (let s = 0; s < 3; s++) {
+      const twig = new THREE.Group();
+      twig.add(new THREE.Mesh(stemGeo, twigMat));
+      for (let i = 0; i < 8; i++) {
+        const leaf = new THREE.Mesh(leafGeo, willowMat);
+        leaf.position.y = 0.05 + i * 0.02;
+        leaf.rotation.set(0, i * 2.4 + s, (i % 2 ? 1 : -1) * 0.95);
+        twig.add(leaf);
+      }
+      twig.rotation.set(0.1 * (s - 1), 0, (s - 1) * 0.3);
+      g.add(twig);
+    }
+    g.scale.setScalar(scale);
+    return g;
+  }
+  const wipeCloth = new THREE.Mesh(new THREE.PlaneGeometry(0.078, 0.056), new THREE.MeshStandardMaterial({ color: '#efe9dc', roughness: 0.92, side: THREE.DoubleSide }));
+  wipeCloth.visible = false; scene.add(wipeCloth);
+  /** The cloth works its way down the tablet face as k goes 0 → 1; outside (0, 1) it is put away. */
+  function wipe(id, k) {
+    const t = tabletMeshes.get(id);
+    if (!t || !(k > 0 && k < 1)) { wipeCloth.visible = false; return; }
+    const swing = Math.sin(k * Math.PI * 9);
+    wipeCloth.visible = true;
+    wipeCloth.position.set(t.pos.x + swing * 0.04, t.pos.y + 0.15 - k * 0.3, t.pos.z + 0.022);
+    wipeCloth.rotation.z = swing * 0.3;
+  }
+  let festG = null;
+  function setFestival(on) {
+    if (on && !festG) {
+      festG = new THREE.Group();
+      const vase = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.021, 0.13, 14), porcelain); vase.position.y = 0.065; vase.castShadow = true;
+      const w = willow(1.9); w.position.y = 0.1;
+      festG.add(vase, w);
+      onTable(festG, -(TABLE.w / 2 - 0.12), 0.06);
+    }
+    if (festG) festG.visible = !!on;
   }
 
   // ---- 火盆 (ritual only) ----
@@ -604,7 +651,7 @@ export function buildAncestral({ look, mode, quality }) {
 
   const ray = new THREE.Raycaster();
   return {
-    scene, camera, avatar: me, update, setTablets, refreshOffers, focus, setView, offer, burn,
+    scene, camera, avatar: me, update, setTablets, refreshOffers, focus, setView, offer, burn, wipe, setFestival,
     get view() { return view; },
     /** tablet id under a screen point (NDC), or null */
     pick(x, y, w = 1, h = 1) {

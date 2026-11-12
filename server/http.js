@@ -327,6 +327,16 @@ export function createHandler(ctx) {
     const merit = out.first ? ctx.creditMerit(u, 'memorial') : { counted: false };
     return { tablet: tabletOut(u, p.id, out.tablet), already: out.already, merit: merit.counted ? merit.merit : 0, me: users.publicView(u) };
   });
+  // 清明雲祭掃：拭塵插柳（兩種模式都可以）、祭掃卡（公開連結，不含任何姓名與照片）
+  route('GET', '/api/festival', () => ({ festival: ctx.festivals.current(), stats: anc.festivalStats() }));
+  route('POST', '/api/ancestors/:id/tablets/:tid/sweep', (req, p, url) => {
+    const u = users.require(token(req));
+    const out = anc.sweep(u, p.id, p.tid);
+    const merit = out.first ? ctx.creditMerit(u, 'memorial') : { counted: false };
+    return { tablet: tabletOut(u, p.id, out.tablet), already: out.already, merit: merit.counted ? merit.merit : 0, me: users.publicView(u), festival: hallOut(u, p.id, url).festival };
+  });
+  route('POST', '/api/ancestors/:id/sweep-card', (req, p) => anc.sweepCard(users.require(token(req)), p.id));
+  route('GET', '/api/sweeps/:code', (req, p) => ({ ...anc.sweepCardView(p.code), stats: anc.festivalStats() }));
   route('POST', '/api/ancestors/:id/tablets/:tid/note', async (req, p) => {
     const u = users.require(token(req));
     return anc.note(u, p.id, p.tid, (await readJson(req)).text);
@@ -373,6 +383,7 @@ export function createHandler(ctx) {
     return {
       online: lobby.totalOnline(), temples: [...lobby.temples.entries()].map(([id]) => ({ id, ...lobby.templeStats(id) })),
       metrics: metrics.snapshot({ reset: url.searchParams.get('reset') === '1' }),
+      festival: ctx.festivals.current() ? { ...ctx.festivals.current(), stats: anc.festivalStats() } : null,
     };
   });
 

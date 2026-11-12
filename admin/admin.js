@@ -54,7 +54,8 @@ async function load() {
   ]);
   $('region').textContent = `部署地區：${cfg.region}${cfg.ritualsAllowed ? '' : '（文化參訪模式）'}`;
   $('stats').innerHTML = `<div class="stat"><span class="muted">全平台在線</span><b>${stats.online}</b></div>` +
-    stats.temples.map((t) => `<div class="stat"><span class="muted">${esc(t.id)} · ${t.rooms} 個房間</span><b>${t.online}</b><span class="muted">今日香火 ${t.incense}</span></div>`).join('');
+    stats.temples.map((t) => `<div class="stat"><span class="muted">${esc(t.id)} · ${t.rooms} 個房間</span><b>${t.online}</b><span class="muted">今日香火 ${t.incense}</span></div>`).join('') +
+    (stats.festival ? `<div class="stat"><span class="muted">清明雲祭掃 · ${stats.festival.phase === 'open' ? '進行中' : `預熱（${stats.festival.inDays} 天後）`}${stats.festival.preview ? ' · 預覽' : ''}</span><b>${stats.festival.stats?.halls ?? 0} 個家堂</b><span class="muted">${stats.festival.stats?.tablets ?? 0} 位先人被祭掃</span></div>` : '');
 
   $('apps').innerHTML = apps.length ? apps.map((a) => `
     <tr>

@@ -45,6 +45,9 @@ export function createAncestors(game, { mode, slug }) {
   let photoData;                  // undefined = unchanged, null = remove, string = new
   const photos = new Map();       // `${id}:${v}` → data URL
   const burn = { on: false, kind: null, pending: 0, timer: 0, sending: false };
+  // 清明雲祭掃: wiping a tablet (distance dragged back and forth), then a willow sprig
+  const sweep = { on: false, tablet: null, dist: 0, turns: 0, dir: 0, x: 0, y: 0, down: false, sending: false, ended: 0 };
+  const SWEEP_PX = 620;
 
   const tablet = (id) => hall?.tablets.find((x) => x.id === id);
   let remindOn = false;
@@ -116,6 +119,7 @@ export function createAncestors(game, { mode, slug }) {
 
   async function cleanup() {
     stopBurn();
+    endSweep();
     selectTablet(null);
     for (const p of ['anc-form-panel', 'anc-fam', 'anc-start']) closePanel(p);
     $('anc').hidden = true;
@@ -159,7 +163,13 @@ export function createAncestors(game, { mode, slug }) {
     // 提醒我: once there is a date worth remembering, offer reminders (opens 我的修行 → 提醒)
     $('anc-remind').hidden = !hall.tablets.length || remindOn;
     $('anc-tip').textContent = !hall.tablets.length ? t('anc.emptyTip') : mode === 'ritual' ? t('anc.tapTip') : `${t('anc.tapTip')} · ${t('anc.culturalNote')}`;
-    $('anc-bar').hidden = !!sel || burn.on;
+    // 清明: the hall's own progress replaces the reminder line while the festival is open
+    const fest = hall.festival;
+    if (fest?.phase === 'open' && hall.tablets.length) $('anc-upcoming').textContent = fest.swept >= fest.total ? t('anc.festAll') : t('anc.festLine', fest.swept, fest.total);
+    else if (fest?.phase === 'warmup' && !next) $('anc-upcoming').textContent = t('fest.warmup', fest.inDays);
+    $('anc-share-sweep').hidden = !(fest?.phase === 'open' && fest.swept > 0);
+    room?.setFestival(!!fest);
+    $('anc-bar').hidden = !!sel || burn.on || sweep.on;
     if (sel) renderSheet();
   }
 
@@ -219,6 +229,10 @@ export function createAncestors(game, { mode, slug }) {
     const today = [...names].map(([n, ks]) => `${n} ${ks.join('、')}`);
     if (burned.length) today.push(burned.join('、'));
     $('anc-today').textContent = today.length ? t('anc.todayList', today.join('；')) : t('anc.nobodyYet');
+    const swept = !!tb.swept?.some((s) => s.mine);
+    $('anc-sweep').hidden = hall.festival?.phase !== 'open';
+    $('anc-sweep').disabled = swept;
+    $('anc-sweep').textContent = t(swept ? 'anc.swept' : 'anc.sweep');
     $('anc-burn-btn').hidden = !hall.paper.length;
     $('anc-edit').hidden = !tb.canEdit;
     $('anc-gild').hidden = tb.permanent || !game.shop?.enabled();
@@ -287,6 +301,76 @@ export function createAncestors(game, { mode, slug }) {
       await api('POST', `/api/ancestors/${hall.id}/tablets/${tb.id}/notes/${id}/remove`);
       tb.notes = tb.notes.filter((n) => n.id !== id);
       renderSheet();
+    } catch { toast(t('err.generic')); }
+  }
+
+  // ---------------------------------------------------------------- 清明雲祭掃
+
+  function startSweep() {
+    const tb = tablet(sel);
+    if (!tb || hall.festival?.phase !== 'open' || sweep.on) return;
+    Object.assign(sweep, { on: true, tablet: tb.id, dist: 0, turns: 0, dir: 0, down: false });
+    $('anc').classList.add('sweeping');
+    $('anc-sheet').hidden = true; $('anc-bar').hidden = true; $('anc-sweep-ui').hidden = false;
+    $('anc-sweep-for').textContent = t('anc.sweepHint', who(tb));
+    paintSweep();
+  }
+  function paintSweep() {
+    const k = Math.min(1, sweep.dist / SWEEP_PX);
+    $('anc-sweep-fill').style.width = `${Math.round(k * 100)}%`;
+    $('anc-sweep-fill').parentElement.setAttribute('aria-valuenow', String(Math.round(k * 100)));
+    room?.wipe(sweep.tablet, Math.min(0.985, Math.max(0.015, k)));
+  }
+  function endSweep() {
+    if (!sweep.on) return;
+    sweep.on = false; sweep.down = false; sweep.ended = performance.now();
+    $('anc').classList.remove('sweeping');
+    $('anc-sweep-ui').hidden = true;
+    room?.wipe(null, 0);
+    if (sel) $('anc-sheet').hidden = false;
+    render();
+  }
+  function onSweepMove(e) {
+    if (!sweep.on || !sweep.down) return;
+    const dx = e.clientX - sweep.x, dy = e.clientY - sweep.y;
+    if (Math.abs(dx) + Math.abs(dy) < 3) return;
+    const dir = Math.abs(dx) >= Math.abs(dy) ? Math.sign(dx) : Math.sign(dy) * 2;
+    if (dir && dir !== sweep.dir) { sweep.turns += 1; sweep.dir = dir; }
+    sweep.dist += Math.hypot(dx, dy);
+    sweep.x = e.clientX; sweep.y = e.clientY;
+    paintSweep();
+    // back and forth, not one long drag off the screen
+    if (sweep.dist >= SWEEP_PX && sweep.turns >= 3) finishSweep();
+  }
+  async function finishSweep() {
+    if (sweep.sending || !sweep.on) return;
+    sweep.sending = true;
+    const tid = sweep.tablet;
+    try {
+      const r = await api('POST', `/api/ancestors/${hall.id}/tablets/${tid}/sweep${q}`);
+      replaceTablet(r.tablet);
+      const before = hall.festival;
+      hall.festival = r.festival;
+      endSweep();
+      room.setTablets(hall.tablets);
+      room.focus(sel);
+      room.offer('sweep');
+      audio.bell(0.12);
+      if (r.me) game.setMe(r.me);
+      toast(r.merit ? `${t('anc.sweepDone', who(r.tablet))} · ${t('merit.gain', r.merit)}` : t('anc.sweepDone', who(r.tablet)), { gold: true });
+      if (r.festival && r.festival.swept >= r.festival.total && before && before.swept < before.total) setTimeout(() => toast(t('anc.festAll'), { gold: true }), 2600);
+      render();
+    } catch (err) {
+      endSweep();
+      toast(err.status === 409 ? t('anc.err.not_in_season') : t('err.generic'));
+    } finally { sweep.sending = false; }
+  }
+  async function shareSweep() {
+    try {
+      const { code } = await api('POST', `/api/ancestors/${hall.id}/sweep-card`);
+      const url = `${location.origin}/q/${code}`;
+      if (navigator.share) { await navigator.share({ title: t('sweep.shareTitle', hall.name), text: t('sweep.shareText'), url }).catch(() => {}); return; }
+      try { await navigator.clipboard.writeText(url); toast(t('anc.copied')); } catch { toast(url); }
     } catch { toast(t('err.generic')); }
   }
 
@@ -579,6 +663,10 @@ export function createAncestors(game, { mode, slug }) {
   $('anc-sheet-close').onclick = () => selectTablet(null);
   $('anc-edit').onclick = () => openForm(sel);
   $('anc-burn-btn').onclick = startBurn;
+  $('anc-sweep').onclick = startSweep;
+  $('anc-sweep-skip').onclick = () => { sweep.dist = SWEEP_PX; paintSweep(); finishSweep(); }; // no drag needed (keyboard, switch access)
+  $('anc-sweep-cancel').onclick = endSweep;
+  $('anc-share-sweep').onclick = shareSweep;
   const reloadHall = async () => { await load(hall.id); room.setTablets(hall.tablets); render(); };
   $('anc-gild').onclick = () => game.shop.open({ context: 'tablet', target: { hallId: hall.id, tabletId: sel }, onDone: reloadHall });
   $('anc-paper-shop').onclick = async () => {
@@ -625,10 +713,14 @@ export function createAncestors(game, { mode, slug }) {
 
   // taps on the hall pick a tablet; taps on empty space put the camera back
   $('anc-hit').addEventListener('click', (e) => {
-    if (!room || burn.on) return;
+    if (!room || burn.on || sweep.on || performance.now() - sweep.ended < 400) return;
     const id = room.pick(e.clientX / window.innerWidth * 2 - 1, -(e.clientY / window.innerHeight * 2 - 1), window.innerWidth, window.innerHeight);
     selectTablet(id);
   });
+  const hit = $('anc-hit');
+  hit.addEventListener('pointerdown', (e) => { if (!sweep.on) return; sweep.down = true; sweep.x = e.clientX; sweep.y = e.clientY; try { hit.setPointerCapture(e.pointerId); } catch { /* synthetic */ } });
+  hit.addEventListener('pointermove', onSweepMove);
+  for (const ev of ['pointerup', 'pointercancel']) hit.addEventListener(ev, () => { sweep.down = false; });
   const stack = $('anc-stack');
   stack.addEventListener('pointerdown', onStackDown);
   stack.addEventListener('pointermove', onStackMove);

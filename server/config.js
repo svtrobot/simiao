@@ -37,6 +37,8 @@ export const config = {
   scenesDir: path.join(ROOT, 'scenes'),
   contentDir: path.join(ROOT, 'content'),
   adminToken: env.ADMIN_TOKEN || '',
+  // 節日活動預覽（只供本機測試）：FESTIVAL_PREVIEW=qingming 把今天當作清明。線上不要設。
+  festivalPreview: env.FESTIVAL_PREVIEW || '',
   // Web Push (提醒): VAPID contact, and optionally a fixed key pair (JSON {jwk, publicKey}) for several instances.
   push: {
     subject: env.PUSH_SUBJECT || (env.PUBLIC_ORIGIN || '').replace(/\/$/, '') || 'https://github.com/svtrobot/simiao',
