@@ -1,6 +1,8 @@
 // 大雄寶殿主尊與脅侍（設計文檔 8.3：莊重、無戲謔；不同宗教神像不混放）。
 // 釋迦牟尼佛 · 結跏趺坐、禪定印、雙領下垂袈裟、螺髮肉髻、白毫、長耳垂，蓮花須彌座 + 舟形背光。
 // 左右脅侍：迦葉尊者（年長）、阿難尊者（年輕），彩塑立像、合十。
+// 外觀參照實物貼金造像：金身映著殿內燈火、袈裟衣緣與摺縫見朱紅、青黑螺髮、朱唇、懷中托缽，
+// 背光為深赭地金色火焰紋與化佛。脅侍同為貼金立像，身後有頭光。
 // 全部程序化生成，按材質併入 temple.js 的 Batch（每種材質一次 draw call），不增加下載量。
 // 模型空間：正面朝 +z，單位為米。
 import * as THREE from 'three';
@@ -212,14 +214,21 @@ function seatedBuddha() {
     const a = Math.PI / 2 + OPEN + u * (Math.PI * 2 - 2 * OPEN);
     const y = 0.55 + v * 1.47;
     // soft vertical drapery ripples on the sides and back
-    const rip = 0.012 * Math.sin(a * 14) * smooth(1.9, 1.2, y);
+    const rip = (0.026 * Math.sin(a * 11 + 1.3 * Math.sin(y * 3.2)) + 0.012 * Math.sin(a * 23 - y * 4.0)) * smooth(1.95, 1.3, y);
     return shellPt(a, y, rip);
-  }, 64, 24, { twoSided: true }));
+  }, 144, 32, { twoSided: true }));
   // lapels follow the opening, from the neck down to the lap
   for (const s of [-1, 1]) {
     const lapel = [];
     for (let i = 0; i <= 12; i++) { const y = 2.0 - (i / 12) * 1.4; lapel.push(shellPt(Math.PI / 2 - s * (OPEN - 0.02), y, 0.02)); }
     add('statue', tube(lapel, 0.045, 6));
+    // 朱紅衣緣: the turned hem shows red beside the gold lapel, and along the bottom of the robe
+    const hem = [];
+    for (let i = 0; i <= 12; i++) { const y = 1.97 - (i / 12) * 1.38; hem.push(shellPt(Math.PI / 2 - s * (OPEN + 0.075), y, 0.014)); }
+    add('robeRed', tube(hem, 0.02, 6));
+    const skirt = [];
+    for (let i = 0; i <= 16; i++) skirt.push(shellPt(Math.PI / 2 - s * (OPEN + 0.1 + (i / 16) * 2.3), 0.57, 0.012));
+    add('robeRed', tube(skirt, 0.02, 6));
     // drapery folds running down the sleeves
     for (const da of [0.75, 1.15, 1.6]) {
       const pts = [];
@@ -239,11 +248,16 @@ function seatedBuddha() {
       const c = el.clone().lerp(wr, 0.05 + u * 0.75);
       return V3(c.x, c.y - 0.08 - v * (0.12 + 0.14 * Math.sin(Math.PI * u)), c.z - 0.04 + 0.03 * v);
     }, 10, 4, { twoSided: true }));
+    const cuff = [];
+    for (let i = 0; i <= 10; i++) { const u = i / 10, c = el.clone().lerp(wr, 0.05 + u * 0.75); cuff.push(V3(c.x, c.y - 0.2 - 0.14 * Math.sin(Math.PI * u), c.z - 0.008)); }
+    add('robeRed', tube(cuff, 0.016, 5));
   }
   // palms up, right over left; thumbs meeting above
   const palmL = new THREE.SphereGeometry(1, 20, 12); palmL.scale(0.24, 0.055, 0.15); palmL.translate(0, 0.6, 0.66); add('statue', palmL);
   const palmR = new THREE.SphereGeometry(1, 20, 12); palmR.scale(0.23, 0.05, 0.14); palmR.translate(0, 0.66, 0.68); add('statue', palmR);
-  for (const s of [-1, 1]) add('statue', tube([V3(s * 0.15, 0.68, 0.62), V3(s * 0.08, 0.76, 0.66), V3(0, 0.78, 0.67)], 0.03, 8));
+  // 缽: the alms bowl rests on the joined palms, thumbs along its rim
+  const bowl = new THREE.SphereGeometry(1, 28, 16, 0, Math.PI * 2, 0.5, Math.PI - 0.5); bowl.scale(0.2, 0.125, 0.2); bowl.translate(0, 0.8, 0.69); add('bowl', bowl);
+  for (const s of [-1, 1]) add('statue', tube([V3(s * 0.17, 0.68, 0.62), V3(s * 0.2, 0.76, 0.7), V3(s * 0.16, 0.82, 0.8)], 0.028, 8));
 
   // inner garment (僧祇支): band with a knot, U-folds on the chest
   const band = []; for (let i = 0; i <= 10; i++) band.push(torsoPt(Math.PI / 2 + (i / 10 - 0.5) * 1.1, 1.16, 0.012)); add('trim', tube(band, 0.03, 6));
@@ -262,7 +276,7 @@ function seatedBuddha() {
       const t = i / 10, x = s * (0.95 - t * 0.7), z = 0.5 + 0.38 * Math.sin(Math.PI * t * 0.8) - k * 0.1;
       pts.push(V3(x, lapY(x, z) + 0.012, z));
     }
-    add('statue', tube(pts, 0.016, 5));
+    add(k % 2 ? 'robeRed' : 'statue', tube(pts, k % 2 ? 0.012 : 0.018, 5));
   }
 
   // short, full neck with 三道
@@ -275,6 +289,12 @@ function seatedBuddha() {
   add('statue', sculptHead(R, opts).translate(0, HY, HZ));
   for (const s of [-1, 1]) add('statue', ear(R, s, true).translate(0, HY, HZ));
   for (const l of faceLines(R, opts)) add(l.key, l.geo.translate(0, HY, HZ));
+  // 朱唇: painted lips, as on gilded images
+  for (const [y, half, rad] of [[-0.445, 0.125, 0.0075], [-0.492, 0.1, 0.0085]]) {
+    const lip = [];
+    for (let i = 0; i <= 8; i++) { const t = i / 8 * 2 - 1; lip.push(facePoint(t * half, y + 0.018 * t * t * (y > -0.47 ? 1 : -1), R, opts, 0.0015)); }
+    add('lip', tube(lip, rad, 6).translate(0, HY, HZ));
+  }
   // 白毫
   const urna = facePoint(0, 0.2, R, opts, 0.01); add('pearl', new THREE.SphereGeometry(0.022, 10, 8).translate(urna.x, urna.y + HY, urna.z + HZ));
   // hair cap + 螺髮 + 肉髻 + 髻珠
@@ -288,23 +308,23 @@ function seatedBuddha() {
   const ushY = HY + R.y * 0.92;
   const ush = new THREE.SphereGeometry(1, 24, 16); ush.scale(0.17, 0.15, 0.17); ush.translate(0, ushY, HZ - 0.01); add('hair', ush);
   // 螺髮: dense small curls (low-poly, they are tiny on screen)
-  const curl = new THREE.SphereGeometry(1, 5, 3);
-  const N = 1300, golden = Math.PI * (3 - Math.sqrt(5));
+  const curl = new THREE.SphereGeometry(1, 6, 4);
+  const N = 820, golden = Math.PI * (3 - Math.sqrt(5));
   for (let i = 0; i < N; i++) {
     const y = 1 - (i / (N - 1)) * 2, rr = Math.sqrt(1 - y * y), a = i * golden;
     const x = Math.cos(a) * rr, z = Math.sin(a) * rr;
     if (y < hairline(z)) continue;
-    const c = curl.clone(); c.scale(0.019, 0.016, 0.019);
-    c.translate(x * R.x * 1.03, y * R.y * 1.03 + HY, z * R.z * 1.03 + HZ);
+    const c = curl.clone(); c.scale(0.026, 0.021, 0.026);
+    c.translate(x * R.x * 1.035, y * R.y * 1.035 + HY, z * R.z * 1.035 + HZ);
     add('hair', c);
   }
-  for (let i = 0; i < 150; i++) {
-    const y = 1 - (i / 149) * 1.3, rr = Math.sqrt(Math.max(1 - y * y, 0)), a = i * golden;
-    const c = curl.clone(); c.scale(0.018, 0.015, 0.018);
+  for (let i = 0; i < 110; i++) {
+    const y = 1 - (i / 109) * 1.3, rr = Math.sqrt(Math.max(1 - y * y, 0)), a = i * golden;
+    const c = curl.clone(); c.scale(0.024, 0.02, 0.024);
     c.translate(Math.cos(a) * rr * 0.175, y * 0.155 + ushY, Math.sin(a) * rr * 0.175 + HZ - 0.01);
     add('hair', c);
   }
-  add('jewel', new THREE.SphereGeometry(0.035, 12, 8).translate(0, ushY - 0.08, HZ + 0.16));
+  add('jewel', new THREE.SphereGeometry(0.05, 16, 10).scale(1, 0.85, 0.7).translate(0, ushY - 0.085, HZ + 0.165));
   return parts;
 }
 
@@ -320,6 +340,8 @@ function lotusThrone(height = 1.0) {
     const c = new THREE.CylinderGeometry(r, r, (y1 - y0) * H, 8); c.rotateY(Math.PI / 8); c.translate(0, (y0 + y1) / 2 * H - H, 0);
     add(y1 - y0 > 0.1 ? 'throne' : 'statue', c);
   }
+  // 連珠紋: a ring of gilded beads round the waist of the plinth
+  for (let i = 0; i < 40; i++) { const a = (i / 40) * Math.PI * 2; add('statue', new THREE.SphereGeometry(0.04, 8, 6).translate(Math.cos(a) * 1.3, 0.32 * H - H, Math.sin(a) * 1.3)); }
   // drum (mostly hidden behind the petals)
   const drum = new THREE.CylinderGeometry(1.0, 1.05, 0.4 * H, 32); drum.translate(0, -0.24 * H, 0); add('throne', drum);
   // 覆蓮: broad petals turned down over the plinth edge
@@ -345,6 +367,8 @@ function lotusThrone(height = 1.0) {
 
 // ---------------------------------------------------------------- 脅侍立像（迦葉、阿難）
 
+const GILT = { robeInner: 'statue', robeOuter: 'statue', robeSeam: 'robeRed', skinOld: 'statue', skinYoung: 'statue', lineWhite: 'line', lineSoft: 'line' };
+
 function standingMonk({ old = false } = {}) {
   const parts = [];
   const add = (key, geo) => parts.push({ key, geo });
@@ -361,7 +385,8 @@ function standingMonk({ old = false } = {}) {
   // kasaya band from the left shoulder across the chest to the right hip
   const sash = (u) => { const y = 1.74 - u * 0.95; const a = Math.PI / 2 + (0.95 - u * 1.9); return V3((kx(y) + 0.012) * Math.cos(a) * (u < 0.1 ? 0.9 : 1), y, (kz(y) + 0.012) * Math.sin(a)); };
   const sashN = (u) => { const p = sash(u); return V3(p.x, 0, p.z).normalize(); };
-  add('robeOuter', ribbon((u) => { const p = sash(u); return p; }, sashN, 0.22));
+  parts.push({ key: 'robeRed', geo: ribbon((u) => { const p = sash(u); return p; }, sashN, 0.2), sash: true });
+  for (const off of [-0.115, 0.115]) add('statue', tube(Array.from({ length: 13 }, (_, i) => { const p = sash(i / 12), n = sashN(i / 12); return p.addScaledVector(n, 0.012).add(V3(0, off, 0)); }), 0.012, 5));
   // kasaya 田相: a few dark seams in a grid on the outer robe (not gold: it is cloth)
   for (let k = 0; k < 3; k++) {
     const pts = []; const yy = 0.7 + k * 0.22;
@@ -406,83 +431,244 @@ function standingMonk({ old = false } = {}) {
     add('statue', p);
   }
   add('throne', new THREE.CylinderGeometry(0.34, 0.38, 0.14, 20).translate(0, -0.07, 0));
+  // 頭光: a green disc ringed in gold behind the head
+  add('haloGreen', new THREE.CylinderGeometry(0.27, 0.27, 0.012, 32).rotateX(Math.PI / 2).translate(0, HY + 0.02, -0.15));
+  add('statue', new THREE.TorusGeometry(0.27, 0.018, 6, 36).translate(0, HY + 0.02, -0.15));
+  add('statue', new THREE.TorusGeometry(0.17, 0.008, 5, 30).translate(0, HY + 0.02, -0.142));
+  // 貼金立像: body and robes are gilded, the 田相 seams and the sash show red (the age of each face is in the sculpt)
+  const sashGeo = parts.find((p) => p.sash);
+  for (const p of parts) if (p !== sashGeo) p.key = GILT[p.key] ?? p.key;
   return parts;
 }
 
 // ---------------------------------------------------------------- mandorla (背光)
 
-function mandorlaTexture() {
+/**
+ * 舟形背光: a deep maroon field with gold flame scrolls, a beaded gold border, small seated
+ * Buddhas (化佛) in niches around the head halo. Painted three times with different palettes:
+ * colour, roughness+metalness (gold leaf is metal, the painted field is not) and height (the gold
+ * stands proud of the field), so the one flat panel catches the light like carved, gilded wood.
+ */
+const MAND_W = 1024, MAND_H = 1152;
+
+function paintMandorla(P) {
   // drawn in 768×1152 units on a 2/3-size canvas (texture memory budget, SCENE_PACKAGE.md)
-  const w = 768, h = 1152, k = 2 / 3;
+  const w = MAND_W, h = MAND_H, k = 2 / 3;
   const c = document.createElement('canvas'); c.width = w * k; c.height = h * k;
   const g = c.getContext('2d'); g.scale(k, k);
-  const cx = w / 2;
-  // body aureole: pointed oval
+  const cx = w / 2, base = h - 40;
+  g.fillStyle = P.void; g.fillRect(0, 0, w, h);
+  // outline: a pointed oval. edge(side, t) walks it from the tip (t = 0) to the base (t = 1)
+  const bez = (p0, p1, p2, p3, t) => { const m = 1 - t; return m * m * m * p0 + 3 * m * m * t * p1 + 3 * m * t * t * p2 + t * t * t * p3; };
+  const edge = (side, t) => [cx + side * bez(0, 340, 480, 450, t), bez(40, 220, 640, base, t)];
   const body = new Path2D();
   body.moveTo(cx, 40);
-  body.bezierCurveTo(cx + 260, 220, cx + 360, 640, cx + 340, h - 40);
-  body.lineTo(cx - 340, h - 40);
-  body.bezierCurveTo(cx - 360, 640, cx - 260, 220, cx, 40);
-  // flame border
+  body.bezierCurveTo(cx + 340, 220, cx + 480, 640, cx + 450, base);
+  body.lineTo(cx - 450, base);
+  body.bezierCurveTo(cx - 480, 640, cx - 340, 220, cx, 40);
+  const hy = 330, hr = 152;                 // head halo centre and radius
+
   g.save(); g.clip(body);
-  g.fillStyle = '#b8862e'; g.fillRect(0, 0, w, h);
-  for (let i = 0; i < 46; i++) {
-    const t = i / 45, y = 60 + t * (h - 120), side = i % 2 ? 1 : -1;
-    g.fillStyle = i % 3 ? '#d8a948' : '#e9c46a';
-    g.beginPath(); const x = cx + side * (180 + 150 * Math.sin(Math.PI * Math.min(t * 1.1, 1)));
-    g.moveTo(x, y + 40); g.quadraticCurveTo(x + side * 50, y, x + side * 20, y - 50); g.quadraticCurveTo(x - side * 20, y - 10, x, y + 40); g.fill();
+  g.fillStyle = P.field; g.fillRect(0, 0, w, h);
+  // 火焰紋: tongues of flame curling outward and upward, densest near the rim
+  const flame = (x, y, len, ang, bend, col) => {
+    g.save(); g.translate(x, y); g.rotate(ang); g.fillStyle = col;
+    g.beginPath(); g.moveTo(-len * 0.16, 0);
+    g.bezierCurveTo(-len * 0.3, -len * 0.45, len * 0.28 * bend, -len * 0.55, len * 0.1 * bend, -len);
+    g.bezierCurveTo(len * 0.5 * bend, -len * 0.5, len * 0.36, -len * 0.3, len * 0.16, 0);
+    g.closePath(); g.fill(); g.restore();
+  };
+  for (let layer = 3; layer >= 0; layer--) {
+    const n = 30 - layer * 5;
+    for (let i = 0; i < n; i++) for (const side of [-1, 1]) {
+      const t = 0.04 + (i + (layer % 2) * 0.5) / n * 0.94, [ex, ey] = edge(side, t);
+      const inset = 0.06 + layer * 0.115, x = cx + (ex - cx) * (1 - inset), y = ey + (hy + 300 - ey) * inset * 0.45;
+      const out = Math.atan2(ex - cx, -(ey - (hy + 420)));
+      const len = 118 - layer * 14 + 30 * Math.sin(i * 1.7 + layer);
+      flame(x, y, len, out * 0.5 + side * 0.2, side * (i % 2 ? 1.25 : -0.8), [P.gold, P.gold2, P.goldDeep, P.gold][(i + layer) % 4]);
+    }
   }
-  // inner bands: deep red, teal, gold rings like painted 背光
-  const inner = (s, col) => { g.save(); g.translate(cx, h - 40); g.scale(s, s); g.translate(-cx, -(h - 40)); g.fillStyle = col; g.fill(body); g.restore(); };
-  inner(0.86, '#7a2a20'); inner(0.8, '#c9a24a'); inner(0.76, '#24524c'); inner(0.7, '#c9a24a'); inner(0.66, '#5a1f1a');
-  // fine gold rays (光芒) radiating from behind the body
-  g.strokeStyle = 'rgba(226,194,122,0.45)'; g.lineWidth = 3;
-  for (let i = 0; i < 64; i++) {
-    const a = Math.PI + (i / 63) * Math.PI;
-    g.beginPath(); g.moveTo(cx, h - 140); g.lineTo(cx + Math.cos(a) * 900, h - 140 + Math.sin(a) * 900); g.stroke();
+  // small curls of fire between the tongues
+  g.strokeStyle = P.gold2; g.lineWidth = 6; g.lineCap = 'round';
+  for (let i = 0; i < 26; i++) for (const side of [-1, 1]) {
+    const [ex, ey] = edge(side, 0.1 + i / 26 * 0.85), x = cx + (ex - cx) * (0.5 + 0.2 * (i % 2)), y = ey + 40;
+    g.beginPath(); g.arc(x, y, 15 + (i % 3) * 4, side > 0 ? 0.4 : Math.PI - 0.4, side > 0 ? Math.PI * 1.55 : -Math.PI * 0.55, side < 0); g.stroke();
   }
+  // 身光: the body aureole, two gold bands with a band of colour between
+  const band = (s, col) => { g.save(); g.translate(cx, base); g.scale(s * 0.74, s); g.translate(-cx, -base); g.fillStyle = col; g.fill(body); g.restore(); };
+  band(0.6, P.gold); band(0.578, P.green); band(0.548, P.gold2); band(0.535, P.fieldDeep);
+  // fine rays behind the body
+  g.strokeStyle = P.ray; g.lineWidth = 3;
+  for (let i = 0; i < 56; i++) { const a = Math.PI + (i / 55) * Math.PI; g.beginPath(); g.moveTo(cx, base - 120); g.lineTo(cx + Math.cos(a) * 330, base - 120 + Math.sin(a) * 470); g.stroke(); }
   g.restore();
-  g.strokeStyle = '#e2c27a'; g.lineWidth = 10; g.stroke(body);
-  // head halo (頭光): rings + lotus petals
-  const hy = 330, hr = 230;
-  const ring = (r, col) => { g.fillStyle = col; g.beginPath(); g.arc(cx, hy, r, 0, Math.PI * 2); g.fill(); };
-  ring(hr, '#e2c27a'); ring(hr - 14, '#7a2a20'); ring(hr - 26, '#c9a24a');
-  for (let i = 0; i < 24; i++) {
-    const a = (i / 24) * Math.PI * 2;
-    g.save(); g.translate(cx + Math.cos(a) * (hr - 72), hy + Math.sin(a) * (hr - 72)); g.rotate(a + Math.PI / 2);
-    g.fillStyle = i % 2 ? '#e9c46a' : '#d8a948'; g.beginPath(); g.ellipse(0, 0, 18, 40, 0, 0, Math.PI * 2); g.fill(); g.restore();
+
+  // 化佛: seven small seated Buddhas in pointed niches around the halo
+  for (let i = 0; i < 7; i++) {
+    const a = -Math.PI / 2 + (i - 3) * 0.5, r = hr + 74;
+    const x = cx + Math.cos(a) * r * 1.12, y = hy + 18 + Math.sin(a) * r;
+    g.save(); g.translate(x, y); g.rotate((a + Math.PI / 2) * 0.5); g.scale(0.82, 0.82);
+    g.fillStyle = P.gold; g.beginPath(); g.moveTo(0, -62); g.bezierCurveTo(46, -34, 44, 30, 30, 44); g.lineTo(-30, 44); g.bezierCurveTo(-44, 30, -46, -34, 0, -62); g.fill();
+    g.fillStyle = P.fieldDeep; g.beginPath(); g.moveTo(0, -50); g.bezierCurveTo(36, -28, 34, 24, 23, 36); g.lineTo(-23, 36); g.bezierCurveTo(-34, 24, -36, -28, 0, -50); g.fill();
+    g.fillStyle = P.gold2;
+    g.beginPath(); g.arc(0, -18, 10, 0, Math.PI * 2); g.fill();                                   // head
+    g.beginPath(); g.moveTo(-17, 22); g.quadraticCurveTo(-15, -6, 0, -8); g.quadraticCurveTo(15, -6, 17, 22); g.closePath(); g.fill(); // body
+    g.beginPath(); g.ellipse(0, 24, 24, 8, 0, 0, Math.PI * 2); g.fill();                          // crossed legs
+    g.fillStyle = P.gold; g.beginPath(); g.ellipse(0, 34, 27, 5, 0, 0, Math.PI * 2); g.fill();     // lotus
+    g.restore();
   }
-  ring(hr - 112, '#24524c'); ring(hr - 124, '#e2c27a'); ring(hr - 132, '#3a1a14');
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-  return tex;
+
+  // rim: a gold band with 連珠 (beads) along it
+  g.strokeStyle = P.gold; g.lineWidth = 26; g.stroke(body);
+  g.strokeStyle = P.goldDeep; g.lineWidth = 3; g.stroke(body);
+  g.fillStyle = P.gold2;
+  for (let i = 1; i < 60; i++) for (const side of [-1, 1]) { const [x, y] = edge(side, i / 60); g.beginPath(); g.arc(cx + (x - cx) * 0.99, y, 6.5, 0, Math.PI * 2); g.fill(); }
+
+  // 頭光: beaded rim, a band of scrollwork on green, lotus petals, a bright gold centre
+  const disc = (r, col) => { g.fillStyle = col; g.beginPath(); g.arc(cx, hy, r, 0, Math.PI * 2); g.fill(); };
+  disc(hr + 8, P.goldDeep); disc(hr, P.gold);
+  g.fillStyle = P.gold2; for (let i = 0; i < 36; i++) { const a = (i / 36) * Math.PI * 2; g.beginPath(); g.arc(cx + Math.cos(a) * (hr - 9), hy + Math.sin(a) * (hr - 9), 6, 0, Math.PI * 2); g.fill(); }
+  disc(hr - 18, P.green);
+  g.strokeStyle = P.gold; g.lineWidth = 4;
+  for (let i = 0; i < 20; i++) {                                                               // 卷草紋
+    const a = (i / 20) * Math.PI * 2, rr = hr - 36, x = cx + Math.cos(a) * rr, y = hy + Math.sin(a) * rr;
+    g.beginPath(); g.arc(x, y, 10, a + 0.6, a + 0.6 + Math.PI * 1.5, i % 2 === 0); g.stroke();
+  }
+  disc(hr - 54, P.gold); disc(hr - 60, P.red);
+  for (let i = 0; i < 20; i++) {
+    const a = (i / 20) * Math.PI * 2;
+    g.save(); g.translate(cx + Math.cos(a) * (hr - 78), hy + Math.sin(a) * (hr - 78)); g.rotate(a + Math.PI / 2);
+    g.fillStyle = i % 2 ? P.gold : P.gold2; g.beginPath(); g.ellipse(0, 0, 10, 19, 0, 0, Math.PI * 2); g.fill(); g.restore();
+  }
+  disc(hr - 98, P.goldDeep); disc(hr - 103, P.glow);
+  return c;
+}
+
+const MANDORLA_COLOUR = { void: 'rgba(0,0,0,0)', field: '#3a100c', fieldDeep: '#240907', gold: '#d9a441', gold2: '#f0c868', goldDeep: '#a8742a', green: '#1f4b40', red: '#7a1f16', ray: 'rgba(240,200,104,0.5)', glow: '#f3cf78' };
+// roughness in the green channel, metalness in the blue one
+const orm = (rough, metal) => `rgb(0,${Math.round(rough * 255)},${Math.round(metal * 255)})`;
+const MANDORLA_ORM = { void: orm(1, 0), field: orm(0.82, 0), fieldDeep: orm(0.88, 0), gold: orm(0.34, 1), gold2: orm(0.26, 1), goldDeep: orm(0.45, 1), green: orm(0.6, 0.15), red: orm(0.55, 0.1), ray: orm(0.3, 1), glow: orm(0.22, 1) };
+const grey = (v) => `rgb(${v},${v},${v})`;
+const MANDORLA_HEIGHT = { void: grey(0), field: grey(40), fieldDeep: grey(20), gold: grey(190), gold2: grey(255), goldDeep: grey(140), green: grey(70), red: grey(90), ray: grey(110), glow: grey(170) };
+
+function mandorlaMaps(lite) {
+  const tex = (palette, srgb) => {
+    const t = new THREE.CanvasTexture(paintMandorla(palette));
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  };
+  const map = tex(MANDORLA_COLOUR, true);
+  if (lite) return { map };
+  const ormTex = tex(MANDORLA_ORM, false);
+  return { map, roughnessMap: ormTex, metalnessMap: ormTex, bumpMap: tex(MANDORLA_HEIGHT, false) };
+}
+
+// ---------------------------------------------------------------- 貼金 (gilding)
+
+let glow = null;
+/**
+ * What gold leaf has to reflect: a dim hall with warm light — the glow of the lamps overhead,
+ * rows of candle flames at altar height, red lacquer columns, a dark floor. An equirectangular
+ * picture; three.js prefilters it for the roughness of each material.
+ */
+function templeGlow() {
+  if (glow) return glow;
+  const w = 512, h = 256, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  const sky = g.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, '#4a2c10'); sky.addColorStop(0.28, '#b98a44'); sky.addColorStop(0.5, '#d9a455'); sky.addColorStop(0.64, '#8f5526'); sky.addColorStop(0.82, '#6a3a1a'); sky.addColorStop(1, '#3a1e0c');
+  g.fillStyle = sky; g.fillRect(0, 0, w, h);
+  const blob = (x, y, rx, ry, col, a) => {
+    g.save(); g.translate(x, y); g.scale(rx, ry);
+    const r = g.createRadialGradient(0, 0, 0, 0, 0, 1); r.addColorStop(0, col); r.addColorStop(1, 'rgba(0,0,0,0)');
+    g.globalAlpha = a; g.fillStyle = r; g.beginPath(); g.arc(0, 0, 1, 0, Math.PI * 2); g.fill(); g.restore();
+  };
+  for (let i = 0; i < 4; i++) {                                    // the same hall on every side, so orientation does not matter
+    const x0 = i * w / 4;
+    blob(x0 + 64, 62, 96, 58, '#fff6dc', 1);                       // lamp light from above
+    blob(x0 + 64, 62, 46, 26, '#ffffff', 1);
+    blob(x0 + 64, 62, 46, 26, '#ffffff', 1);
+    blob(x0, 96, 30, 60, '#ffb060', 0.8);                          // palace lanterns between
+    g.fillStyle = '#6e1a10'; g.fillRect(x0 + 118, 40, 12, 150);    // red columns
+    g.fillStyle = '#3a0e08'; g.fillRect(x0 + 6, 40, 8, 150);
+    for (let k = 0; k < 9; k++) blob(x0 + 20 + k * 11, 150 + (k % 2) * 4, 5, 8, '#ffe2a0', 1); // candle flames
+  }
+  blob(w / 2, 24, 260, 40, '#ffe6b8', 0.7);
+  blob(0, 24, 260, 40, '#ffe6b8', 0.7); blob(w, 24, 260, 40, '#ffe6b8', 0.7);
+  glow = new THREE.CanvasTexture(c);
+  glow.colorSpace = THREE.SRGBColorSpace;
+  glow.mapping = THREE.EquirectangularReflectionMapping;
+  return glow;
+}
+
+/**
+ * Gilded surface. Real gold leaf is a mirror-smooth metal broken up by the hand that laid it:
+ * the gloss varies a little from place to place, and the hollows and undersides read warmer and
+ * deeper where the red bole shows and less light reaches. Both are done in the shader, from the
+ * model-space position and normal (no textures, no extra UVs).
+ */
+function gilt({ color, roughness, lite }) {
+  if (lite) return new THREE.MeshStandardMaterial({ color, metalness: 0.75, roughness: Math.max(roughness, 0.36) });
+  const m = new THREE.MeshStandardMaterial({ color, metalness: 1, roughness, envMap: templeGlow(), envMapIntensity: 1.7 });
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vGiltP;\nvarying vec3 vGiltN;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGiltP = position;\nvGiltN = normal;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+varying vec3 vGiltP;
+varying vec3 vGiltN;
+float giltHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float giltNoise(vec3 x) {
+  vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(giltHash(i), giltHash(i + vec3(1, 0, 0)), f.x), mix(giltHash(i + vec3(0, 1, 0)), giltHash(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(giltHash(i + vec3(0, 0, 1)), giltHash(i + vec3(1, 0, 1)), f.x), mix(giltHash(i + vec3(0, 1, 1)), giltHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+float giltDown = smoothstep(-0.2, -0.95, normalize(vGiltN).y);
+diffuseColor.rgb *= mix(vec3(1.0), vec3(0.9, 0.62, 0.38), giltDown * 0.55);`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+float giltLeaf = giltNoise(vGiltP * 45.0) * 0.5 + giltNoise(vGiltP * 160.0) * 0.5;
+roughnessFactor = clamp(roughnessFactor + (giltLeaf - 0.5) * 0.07, 0.07, 1.0);`);
+  };
+  m.customProgramCacheKey = () => 'gilt';
+  return m;
 }
 
 // ---------------------------------------------------------------- assembly
 
-export const STATUE_MATERIALS = () => ({
-  // 鎏金：metal with a little roughness so it reads as gilded bronze, not chrome
-  statue: new THREE.MeshStandardMaterial({ color: '#d4a64a', metalness: 0.75, roughness: 0.38 }),
-  trim: new THREE.MeshStandardMaterial({ color: '#b5852e', metalness: 0.7, roughness: 0.45 }),
-  hair: new THREE.MeshStandardMaterial({ color: '#2a3a63', roughness: 0.55, metalness: 0.15 }),
-  line: new THREE.MeshStandardMaterial({ color: '#2a1d14', roughness: 0.8 }),
-  lineWhite: new THREE.MeshStandardMaterial({ color: '#e8e2d6', roughness: 0.8 }),
-  lineSoft: new THREE.MeshStandardMaterial({ color: '#8a6648', roughness: 0.9 }),
-  pearl: new THREE.MeshStandardMaterial({ color: '#f4efe4', emissive: '#fff3d6', emissiveIntensity: 0.4, roughness: 0.25 }),
-  jewel: new THREE.MeshStandardMaterial({ color: '#9e1b16', metalness: 0.3, roughness: 0.25 }),
-  throne: new THREE.MeshStandardMaterial({ color: '#7a2a20', roughness: 0.5 }),
-  skinOld: new THREE.MeshStandardMaterial({ color: '#c49a72', roughness: 0.75 }),
-  skinYoung: new THREE.MeshStandardMaterial({ color: '#e3c29d', roughness: 0.7 }),
-  robeInner: new THREE.MeshStandardMaterial({ color: '#b08a52', roughness: 0.85 }),
-  robeOuter: new THREE.MeshStandardMaterial({ color: '#8c3424', roughness: 0.8, side: THREE.DoubleSide }),
-  robeSeam: new THREE.MeshStandardMaterial({ color: '#5e2016', roughness: 0.9 }),
-});
+export const STATUE_MATERIALS = ({ quality = 'med' } = {}) => {
+  const lite = quality === 'low';
+  return {
+    // 貼金：gold leaf reflecting the lamps of the hall (see gilt()); on the low tier a plain gilded-bronze fallback
+    statue: gilt({ color: '#ffcf6a', roughness: 0.23, lite }),
+    trim: new THREE.MeshStandardMaterial({ color: '#8a2016', roughness: 0.5, metalness: 0.1 }),
+    // 青黑螺髮
+    hair: new THREE.MeshStandardMaterial({ color: '#0e1630', roughness: 0.42, metalness: 0.25 }),
+    line: new THREE.MeshStandardMaterial({ color: '#2a1d14', roughness: 0.8 }),
+    lineWhite: new THREE.MeshStandardMaterial({ color: '#e8e2d6', roughness: 0.8 }),
+    lineSoft: new THREE.MeshStandardMaterial({ color: '#8a6648', roughness: 0.9 }),
+    lip: new THREE.MeshStandardMaterial({ color: '#a3271c', roughness: 0.45 }),
+    pearl: new THREE.MeshStandardMaterial({ color: '#f4efe4', emissive: '#fff3d6', emissiveIntensity: 0.4, roughness: 0.25 }),
+    jewel: new THREE.MeshStandardMaterial({ color: '#b3160f', emissive: '#5a0a06', emissiveIntensity: 0.6, metalness: 0.2, roughness: 0.18 }),
+    // 朱紅衣緣 (the red lining that shows at hems and in the folds)
+    robeRed: new THREE.MeshStandardMaterial({ color: '#9a2318', roughness: 0.5, metalness: 0.1 }),
+    bowl: new THREE.MeshStandardMaterial({ color: '#14100e', roughness: 0.28, metalness: 0.35, side: THREE.DoubleSide }),
+    haloGreen: new THREE.MeshStandardMaterial({ color: '#1f5a48', roughness: 0.55, metalness: 0.2 }),
+    throne: new THREE.MeshStandardMaterial({ color: '#6e1c14', roughness: 0.4, metalness: 0.1 }),
+    skinOld: new THREE.MeshStandardMaterial({ color: '#c49a72', roughness: 0.75 }),
+    skinYoung: new THREE.MeshStandardMaterial({ color: '#e3c29d', roughness: 0.7 }),
+    robeInner: new THREE.MeshStandardMaterial({ color: '#b08a52', roughness: 0.85 }),
+    robeOuter: new THREE.MeshStandardMaterial({ color: '#8c3424', roughness: 0.8, side: THREE.DoubleSide }),
+    robeSeam: new THREE.MeshStandardMaterial({ color: '#5e2016', roughness: 0.9 }),
+  };
+};
 
 /**
  * Adds the main image and attendants to a Batch. (x, topY, z) = centre of the altar top.
  * Returns extra meshes (mandorla) that need their own material.
  */
-export function addShrine(B, M, { x, topY, z, width = 8 }) {
+export function addShrine(B, M, { x, topY, z, width = 8, quality = 'med' }) {
   const place = (parts, mtx) => { for (const p of parts) B.add(p.key, p.geo, mtx); };
   const throneH = 0.95, seatY = topY + throneH;
   place(lotusThrone(throneH), M(x, seatY, z));
@@ -494,10 +680,12 @@ export function addShrine(B, M, { x, topY, z, width = 8 }) {
 
   // Texture layout: head-halo centre sits 28.6% from the top, aureole base 96.5% → size the
   // plane so the halo is centred on the head (seatY + 2.46) and the base meets the throne.
-  const H = 4.8, W = H * 768 / 1152;
-  const mand = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshStandardMaterial({
-    map: mandorlaTexture(), roughness: 0.5, metalness: 0.35, emissive: '#3a2410', emissiveIntensity: 0.25, alphaTest: 0.5,
-  }));
+  const lite = quality === 'low';
+  const H = 4.8, W = H * MAND_W / MAND_H;
+  const maps = mandorlaMaps(lite);
+  const mand = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshStandardMaterial(lite
+    ? { map: maps.map, roughness: 0.5, metalness: 0.35, emissive: '#3a2410', emissiveIntensity: 0.25, alphaTest: 0.5 }
+    : { ...maps, roughness: 1, metalness: 1, bumpScale: 3, envMap: templeGlow(), envMapIntensity: 1.25, alphaTest: 0.5 }));
   mand.position.set(x, seatY + 2.4 - (0.5 - 0.286) * H, z - 0.7);
   return [mand];
 }

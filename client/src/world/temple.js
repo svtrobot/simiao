@@ -132,7 +132,7 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
     mountain: new THREE.MeshStandardMaterial({ color: '#6c7686', roughness: 1, flatShading: true }),
     tablet: new THREE.MeshStandardMaterial({ color: '#d6bd8f', roughness: 0.8 }),
     ribbon: new THREE.MeshStandardMaterial({ color: '#b23a2a', roughness: 0.8 }),
-    ...STATUE_MATERIALS(),
+    ...STATUE_MATERIALS({ quality }),
     ...interiorMaterials(),
     ...landscapeMaterials(season),
     ...(S ? S.materials(pal, season) : {}),
@@ -228,7 +228,7 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
     B.add('lacquer', box, M(ax, floorY + 0.6, az + 0.05, 0, 0, 0, 8, 1.2, 3.3));
     B.add('gold', box, M(ax, floorY + 1.22, az + 0.05, 0, 0, 0, 8.1, 0.06, 3.4));
     // 釋迦牟尼佛坐像 + 迦葉、阿難（statue.js）
-    shrineExtras.push(...addShrine(B, M, { x: ax, topY: floorY + 1.25, z: az, width: 8 }));
+    shrineExtras.push(...addShrine(B, M, { x: ax, topY: floorY + 1.25, z: az, width: 8, quality }));
   }
   // ceiling, 藻井, offering table, cushions, banners, lanterns, couplets, murals (interior.js)
   const lampSlot = manifest.slots.find((s) => s.type === 'lamp_wall');
