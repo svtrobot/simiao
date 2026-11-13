@@ -18,7 +18,7 @@
     "gltf": { "high": "assets/buddha-high.glb", "med": "assets/buddha-med.glb" },
     "rev": 4,
     "height": 3.4,
-    "source": { "title": "Golden Buddha Statue (Tranquil Radiance)", "from": "supplied by the operator as golden-buddha-statue.zip, 2026-11-13", "license": "to be confirmed by the operator before public launch" }
+    "source": { "title": "Golden Buddha Statue (Tranquil Radiance)", "from": "supplied by the operator as golden-buddha-statue.zip, 2026-11-13", "license": "confirmed by the operator on 2026-11-13 as cleared for public, commercial use" }
   },
   "environment": {
     "sky": "local-time",
