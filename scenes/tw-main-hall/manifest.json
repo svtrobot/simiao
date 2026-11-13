@@ -13,7 +13,13 @@
     "splat": null,
     "lods": []
   },
-  "budget": { "triangles": 185000, "drawCalls": 100, "textureMB": 19, "firstScreenMB": 0.8 },
+  "budget": { "triangles": 240000, "drawCalls": 100, "textureMB": 19, "firstScreenMB": 0.8 },
+  "statue": {
+    "gltf": { "high": "assets/buddha-high.glb", "med": "assets/buddha-med.glb" },
+    "rev": 4,
+    "height": 3.4,
+    "source": { "title": "Golden Buddha Statue (Tranquil Radiance)", "from": "supplied by the operator as golden-buddha-statue.zip, 2026-11-13", "license": "to be confirmed by the operator before public launch" }
+  },
   "environment": {
     "sky": "local-time",
     "seasons": true,

@@ -13,7 +13,7 @@
 
 ```bash
 npm start            # http://localhost:8787 （Node ≥ 20，零 npm 依赖）
-npm test             # 82 项测试（其中 6 项需要真的 PostgreSQL / Redis，没设 TEST_DATABASE_URL 时跳过），必须全部通过再提交
+npm test             # 84 项测试（其中 6 项需要真的 PostgreSQL / Redis，没设 TEST_DATABASE_URL 时跳过），必须全部通过再提交
 npm run loadtest     # 压测
 docker compose up -d --build   # 容器方式（单实例）
 docker compose -f docker-compose.cluster.yml up -d --build   # PostgreSQL + Redis + 两实例 + Nginx（:8797）
@@ -50,6 +50,7 @@ docker compose -f docker-compose.cluster.yml up -d --build   # PostgreSQL + Redi
 - 节日活动（`docs/FESTIVALS.md`）：节日是数据 `content/events/festivals.json`，活动期由 `server/domain/festival.js` 按节气算；清明云祭扫的祭扫记录在灵位上（`sweeps`），逻辑在 `server/domain/ancestors.js`。祭扫沿用献供的功德规则，不新增功德来源；祭扫卡不带任何姓名。本机预览用 `FESTIVAL_PREVIEW=qingming`，线上不要设。
 - 内容与账号管理（`docs/MODERATION.md`，`server/domain/moderation.js`）：后台**只看公开的东西**（祈愿牌、灯墙）；祖先堂与带自伤念头的内容后台读不到，不要为了方便加接口去读。检举只有预设理由。下架的灯照样亮，只是不显示字。
 - 大集合（`docs/CLUSTER.md`）：**请求路径上不要用 `store.list(集合, 过滤函数)` 扫表**——在服务的构造函数里 `store.index(...)` 声明索引，用 `store.by(...)` 取（`server/store/indexes.js`）。大的值（照片）放 blob：`store.getBlob / putBlob / removeBlob`（异步）。熄灭 2 天以上的灯每小时归档到 `lamps_old`。量测用 `node tools/bench-store.mjs --users 100000`。
+- 主尊雕塑模型（`docs/SCENE_PACKAGE.md`「主尊用雕塑模型」）：场景包 `manifest.statue` 声明，文件由 `tools/optimize-model.mjs` 生成（减面、明暗烤进顶点色、不带贴图），客户端 `client/src/world/model.js` 读取、`statue.js` 的 `addSculpt` 贴金并安放；低画质与下载失败时用程序生成的主尊。重新生成模型要把 `rev` 加一。**现有模型的授权待确认**（见 manifest 的 `statue.source`）。不要用 PowerShell 的 `Get-Content` / `Set-Content` 改源码文件：它会按本地编码读写，把中文注释弄坏。
 - 签诗是原创示例 12 签，需文化顾问审阅。
 
 ## 资料

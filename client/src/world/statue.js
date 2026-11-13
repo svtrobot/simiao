@@ -6,6 +6,8 @@
 // 全部程序化生成，按材質併入 temple.js 的 Batch（每種材質一次 draw call），不增加下載量。
 // 模型空間：正面朝 +z，單位為米。
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { loadSculpt } from './model.js';
 
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 const g2 = (x, s) => Math.exp(-(x / s) * (x / s));
@@ -607,9 +609,11 @@ function templeGlow() {
  * deeper where the red bole shows and less light reaches. Both are done in the shader, from the
  * model-space position and normal (no textures, no extra UVs).
  */
-function gilt({ color, roughness, lite }) {
+function gilt({ color, roughness, lite, tone = false }) {
   if (lite) return new THREE.MeshStandardMaterial({ color, metalness: 0.75, roughness: Math.max(roughness, 0.36) });
-  const m = new THREE.MeshStandardMaterial({ color, metalness: 1, roughness, envMap: templeGlow(), envMapIntensity: 1.7 });
+  // tone: vertex colours carry the light and dark baked from a sculpt's texture (rgb), and alpha marks
+  // what is not gold leaf at all (hair): there the surface is duller and barely metallic
+  const m = new THREE.MeshStandardMaterial({ color, metalness: 1, roughness, envMap: templeGlow(), envMapIntensity: 1.7, vertexColors: tone });
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vGiltP;\nvarying vec3 vGiltN;')
@@ -629,9 +633,16 @@ float giltDown = smoothstep(-0.2, -0.95, normalize(vGiltN).y);
 diffuseColor.rgb *= mix(vec3(1.0), vec3(0.9, 0.62, 0.38), giltDown * 0.55);`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
 float giltLeaf = giltNoise(vGiltP * 45.0) * 0.5 + giltNoise(vGiltP * 160.0) * 0.5;
-roughnessFactor = clamp(roughnessFactor + (giltLeaf - 0.5) * 0.07, 0.07, 1.0);`);
+roughnessFactor = clamp(roughnessFactor + (giltLeaf - 0.5) * 0.07, 0.07, 1.0);
+#ifdef USE_COLOR_ALPHA
+roughnessFactor = mix(0.74, roughnessFactor, vColor.a);
+#endif`)
+      .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
+#ifdef USE_COLOR_ALPHA
+metalnessFactor *= mix(0.05, 1.0, vColor.a);
+#endif`);
   };
-  m.customProgramCacheKey = () => 'gilt';
+  m.customProgramCacheKey = () => (tone ? 'gilt-tone' : 'gilt');
   return m;
 }
 
@@ -668,11 +679,11 @@ export const STATUE_MATERIALS = ({ quality = 'med' } = {}) => {
  * Adds the main image and attendants to a Batch. (x, topY, z) = centre of the altar top.
  * Returns extra meshes (mandorla) that need their own material.
  */
-export function addShrine(B, M, { x, topY, z, width = 8, quality = 'med' }) {
+export function addShrine(B, M, { x, topY, z, width = 8, quality = 'med', image = true, imageHeight = 2.9 }) {
   const place = (parts, mtx) => { for (const p of parts) B.add(p.key, p.geo, mtx); };
   const throneH = 0.95, seatY = topY + throneH;
   place(lotusThrone(throneH), M(x, seatY, z));
-  place(seatedBuddha(), M(x, seatY, z + 0.05));
+  if (image) place(seatedBuddha(), M(x, seatY, z + 0.05)); // otherwise addSculpt() puts a sculpted image on the seat
   // attendants stand on the altar ends, turned slightly inward (迦葉 at the Buddha's left = +x)
   const ax = Math.min(width / 2 - 0.9, 3.0);
   place(standingMonk({ old: true }), M(x + ax, topY + 0.14, z + 0.3, 0, -0.22, 0, 1.25));
@@ -681,11 +692,42 @@ export function addShrine(B, M, { x, topY, z, width = 8, quality = 'med' }) {
   // Texture layout: head-halo centre sits 28.6% from the top, aureole base 96.5% → size the
   // plane so the halo is centred on the head (seatY + 2.46) and the base meets the throne.
   const lite = quality === 'low';
-  const H = 4.8, W = H * MAND_W / MAND_H;
+  // the panel grows with the image, so the halo stays behind the head and the base on the throne
+  const k = imageHeight / 2.9;
+  const H = 4.8 * k, W = H * MAND_W / MAND_H;
   const maps = mandorlaMaps(lite);
   const mand = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshStandardMaterial(lite
     ? { map: maps.map, roughness: 0.5, metalness: 0.35, emissive: '#3a2410', emissiveIntensity: 0.25, alphaTest: 0.5 }
     : { ...maps, roughness: 1, metalness: 1, bumpScale: 3, envMap: templeGlow(), envMapIntensity: 1.25, alphaTest: 0.5 }));
-  mand.position.set(x, seatY + 2.4 - (0.5 - 0.286) * H, z - 0.7);
-  return [mand];
+  mand.position.set(x, seatY + 2.4 * k - (0.5 - 0.286) * H, z - 0.7);
+  const extras = [mand];
+  extras.seat = { x, y: seatY, z: z + 0.05 };
+  return extras;
+}
+
+/**
+ * 主尊用雕塑模型（場景包 manifest.statue，docs/SCENE_PACKAGE.md）：a sculpt reduced by
+ * tools/optimize-model.mjs, gilded with the same material as everything else on the altar.
+ * Scaled to `height` metres and set on the lotus seat. If the file cannot be loaded, the
+ * procedural image takes its place, so the seat is never left empty.
+ */
+export async function addSculpt(group, { url, seat, height = 2.9, quality = 'med', materials }) {
+  let mesh;
+  try {
+    const geo = await loadSculpt(url);
+    const box = geo.boundingBox, s = height / (box.max.y - box.min.y);
+    mesh = new THREE.Mesh(geo, gilt({ color: '#ffcf6a', roughness: 0.33, lite: false, tone: true }));
+    mesh.scale.setScalar(s);
+    mesh.position.set(seat.x - (box.min.x + box.max.x) / 2 * s, seat.y - box.min.y * s, seat.z - (box.min.z + box.max.z) / 2 * s + 0.08);
+    mesh.castShadow = quality === 'high';
+  } catch (e) {
+    console.warn('[statue] sculpt not loaded, using the procedural image:', e.message);
+    mesh = new THREE.Group();
+    const byKey = new Map();
+    for (const p of seatedBuddha()) { if (!byKey.has(p.key)) byKey.set(p.key, []); byKey.get(p.key).push(p.geo.index ? p.geo.toNonIndexed() : p.geo); }
+    for (const [key, geos] of byKey) mesh.add(new THREE.Mesh(mergeGeometries(geos), materials[key]));
+    mesh.position.set(seat.x, seat.y, seat.z);
+  }
+  group.add(mesh);
+  return mesh;
 }

@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as TX from './textures.js';
-import { addShrine, STATUE_MATERIALS } from './statue.js';
+import { addShrine, addSculpt, STATUE_MATERIALS } from './statue.js';
 import { addInterior, interiorMaterials } from './interior.js';
 import { addLandscape, landscapeMaterials } from './landscape.js';
 import { addLampWall } from './lampwall.js';
@@ -221,6 +221,7 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
   // ---- altar & seated figure (自建模，庄重、无戏谑) ----
   const altar = byType('main_altar');
   const shrineExtras = [];
+  let sculpt = null;
   if (altar && S && !S.buddhist) shrineExtras.push(...S.altar(ctx, altar));
   else if (altar) {
     const ax = altar.x, az = altar.z;
@@ -228,7 +229,11 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
     B.add('lacquer', box, M(ax, floorY + 0.6, az + 0.05, 0, 0, 0, 8, 1.2, 3.3));
     B.add('gold', box, M(ax, floorY + 1.22, az + 0.05, 0, 0, 0, 8.1, 0.06, 3.4));
     // 釋迦牟尼佛坐像 + 迦葉、阿難（statue.js）
-    shrineExtras.push(...addShrine(B, M, { x: ax, topY: floorY + 1.25, z: az, width: 8, quality }));
+    // 主尊: a sculpted model when the scene package declares one (manifest.statue) and the tier can afford it
+    const model = quality !== 'low' ? manifest.statue?.gltf?.[quality] || manifest.statue?.gltf?.high : null;
+    const shrine = addShrine(B, M, { x: ax, topY: floorY + 1.25, z: az, width: 8, quality, image: !model, imageHeight: model ? manifest.statue.height || 2.9 : 2.9 });
+    shrineExtras.push(...shrine);
+    if (model) sculpt = { url: `/scenes/${manifest.id}/${model}?r=${manifest.statue.rev || 1}`, seat: shrine.seat, height: manifest.statue.height || 2.9, quality };
   }
   // ceiling, 藻井, offering table, cushions, banners, lanterns, couplets, murals (interior.js)
   const lampSlot = manifest.slots.find((s) => s.type === 'lamp_wall');
@@ -365,6 +370,7 @@ export function buildTemple(manifest, { quality, season, plaqueText, mode = 'rit
 
   // mandorla (背光) and textured / glowing interior pieces
   for (const m of shrineExtras) group.add(m);
+  if (sculpt) addSculpt(group, { ...sculpt, materials: mat }); // arrives a moment after the hall; the seat waits for it
   for (const m of inside.extras) group.add(m);
 
   // cushions (蒲团) — one instanced draw call for all seats
